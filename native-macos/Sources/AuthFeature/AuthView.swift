@@ -1,9 +1,11 @@
+import AppKit
 import SharedDomain
 import SwiftUI
 
 public struct AuthView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: AuthViewModel
+    @State private var copyFeedback: String?
     private let language: AppLanguage
     private let onSignedIn: (() -> Void)?
 
@@ -38,11 +40,40 @@ public struct AuthView: View {
 
             if let challenge = viewModel.state.deviceCodeChallenge {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("\(strings.deviceCode): \(challenge.userCode)")
-                        .font(.headline.monospaced())
+                    HStack(alignment: .center, spacing: 10) {
+                        Text("\(strings.deviceCode): \(challenge.userCode)")
+                            .font(.headline.monospaced())
+                            .textSelection(.enabled)
+
+                        Button(strings.copyCode) {
+                            copyToPasteboard(challenge.userCode, feedback: strings.copiedCode)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+
+                    HStack(alignment: .center, spacing: 10) {
+                        if let verificationURL = URL(string: challenge.verificationURL) {
+                            Link(destination: verificationURL) {
+                                Label(challenge.verificationURL, systemImage: "link")
+                                    .font(.subheadline)
+                            }
+                        } else {
+                            Text(challenge.verificationURL)
+                                .font(.subheadline)
+                        }
+
+                        Button(strings.copyLink) {
+                            copyToPasteboard(challenge.verificationURL, feedback: strings.copiedLink)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+
                     Text("\(strings.verificationURL): \(challenge.verificationURL)")
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                 }
                 .padding(.vertical, 4)
             }
@@ -50,6 +81,12 @@ public struct AuthView: View {
             if let errorMessage = viewModel.state.errorMessage {
                 Text(errorMessage)
                     .foregroundStyle(.red)
+            }
+
+            if let copyFeedback {
+                Label(copyFeedback, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.caption)
             }
 
             HStack(spacing: 10) {
@@ -90,6 +127,12 @@ public struct AuthView: View {
             dismiss()
         }
     }
+
+    private func copyToPasteboard(_ value: String, feedback: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+        copyFeedback = feedback
+    }
 }
 
 private struct AuthStrings {
@@ -105,4 +148,8 @@ private struct AuthStrings {
     var completeSignIn: String { language == .english ? "Complete Sign-In" : "完成登录" }
     var signOut: String { language == .english ? "Sign Out" : "退出登录" }
     var close: String { language == .english ? "Close" : "关闭" }
+    var copyCode: String { language == .english ? "Copy Code" : "复制代码" }
+    var copyLink: String { language == .english ? "Copy Link" : "复制链接" }
+    var copiedCode: String { language == .english ? "Device code copied." : "设备码已复制。" }
+    var copiedLink: String { language == .english ? "Verification link copied." : "验证链接已复制。" }
 }

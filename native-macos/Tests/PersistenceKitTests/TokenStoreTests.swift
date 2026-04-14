@@ -7,8 +7,10 @@ func inMemoryTokenStoreRoundTripsTokens() throws {
     let store = InMemoryTokenStore()
     let tokens = StoredTokens(
         authToken: "auth-token",
+        refreshToken: "refresh-token",
         webToken: "web-token",
-        streamingToken: "stream-token"
+        xHomeStreamingToken: "xhome-token",
+        xCloudStreamingToken: "xcloud-token"
     )
 
     try store.save(tokens)

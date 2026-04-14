@@ -40,5 +40,8 @@ func authServiceCompletesDeviceCodeFlowAndPersistsTokens() async throws {
     #expect(challenge.userCode.isEmpty == false)
     #expect(state.isSignedIn == true)
     #expect(persisted?.authToken?.isEmpty == false)
+    #expect(persisted?.refreshToken == "native-refresh-token")
     #expect(persisted?.webToken == "native-web-token")
+    #expect(persisted?.xHomeStreamingToken == "native-xhome-token")
+    #expect(persisted?.xCloudStreamingToken == "native-xcloud-token")
 }

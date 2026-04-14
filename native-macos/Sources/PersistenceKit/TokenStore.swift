@@ -3,17 +3,23 @@ import Security
 
 public struct StoredTokens: Codable, Equatable, Sendable {
     public let authToken: String?
+    public let refreshToken: String?
     public let webToken: String?
-    public let streamingToken: String?
+    public let xHomeStreamingToken: String?
+    public let xCloudStreamingToken: String?
 
     public init(
         authToken: String? = nil,
+        refreshToken: String? = nil,
         webToken: String? = nil,
-        streamingToken: String? = nil
+        xHomeStreamingToken: String? = nil,
+        xCloudStreamingToken: String? = nil
     ) {
         self.authToken = authToken
+        self.refreshToken = refreshToken
         self.webToken = webToken
-        self.streamingToken = streamingToken
+        self.xHomeStreamingToken = xHomeStreamingToken
+        self.xCloudStreamingToken = xCloudStreamingToken
     }
 }
 

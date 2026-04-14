@@ -4,17 +4,20 @@ import SharedDomain
 
 public struct DeviceCodeChallenge: Equatable, Sendable {
     public let userCode: String
+    public let deviceCode: String
     public let verificationURL: String
     public let message: String
     public let expiresInSeconds: Int
 
     public init(
         userCode: String,
+        deviceCode: String,
         verificationURL: String,
         message: String,
         expiresInSeconds: Int
     ) {
         self.userCode = userCode
+        self.deviceCode = deviceCode
         self.verificationURL = verificationURL
         self.message = message
         self.expiresInSeconds = expiresInSeconds

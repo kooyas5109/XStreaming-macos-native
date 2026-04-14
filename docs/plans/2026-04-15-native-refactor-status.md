@@ -48,6 +48,7 @@ These areas have structure in place, but the real product path is not fully conn
 - AuthFeature
   - Typed service and view model exist
   - Native device-code sign-in flow is modeled and visible in the shell
+  - Live auth provider and endpoint seam now exist for Microsoft and Xbox token requests
   - Real Microsoft/Xbox sign-in provider is not fully wired
 - StreamingFeature
   - Session core and engine abstractions exist

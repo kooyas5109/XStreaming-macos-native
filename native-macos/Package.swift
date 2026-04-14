@@ -8,6 +8,10 @@ let package = Package(
     ],
     products: [
         .library(
+            name: "SharedDomain",
+            targets: ["SharedDomain"]
+        ),
+        .library(
             name: "AppShell",
             targets: ["AppShell"]
         ),
@@ -22,18 +26,27 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "SharedDomain",
+            path: "Sources/SharedDomain"
+        ),
+        .target(
             name: "SupportKit",
             path: "Sources/SupportKit"
         ),
         .target(
             name: "AppShell",
-            dependencies: ["SupportKit"],
+            dependencies: ["SharedDomain", "SupportKit"],
             path: "Sources/AppShell"
         ),
         .executableTarget(
             name: "XStreamingMacApp",
             dependencies: ["AppShell"],
             path: "App"
+        ),
+        .testTarget(
+            name: "SharedDomainTests",
+            dependencies: ["SharedDomain"],
+            path: "Tests/SharedDomainTests"
         ),
         .testTarget(
             name: "AppShellTests",

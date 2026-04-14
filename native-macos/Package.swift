@@ -20,6 +20,10 @@ let package = Package(
             targets: ["NetworkingKit"]
         ),
         .library(
+            name: "AuthFeature",
+            targets: ["AuthFeature"]
+        ),
+        .library(
             name: "AppShell",
             targets: ["AppShell"]
         ),
@@ -48,12 +52,17 @@ let package = Package(
             path: "Sources/NetworkingKit"
         ),
         .target(
+            name: "AuthFeature",
+            dependencies: ["SharedDomain", "PersistenceKit", "NetworkingKit"],
+            path: "Sources/AuthFeature"
+        ),
+        .target(
             name: "SupportKit",
             path: "Sources/SupportKit"
         ),
         .target(
             name: "AppShell",
-            dependencies: ["SharedDomain", "SupportKit", "PersistenceKit", "NetworkingKit"],
+            dependencies: ["SharedDomain", "SupportKit", "PersistenceKit", "NetworkingKit", "AuthFeature"],
             path: "Sources/AppShell"
         ),
         .executableTarget(
@@ -75,6 +84,11 @@ let package = Package(
             name: "NetworkingKitTests",
             dependencies: ["NetworkingKit", "SharedDomain"],
             path: "Tests/NetworkingKitTests"
+        ),
+        .testTarget(
+            name: "AuthFeatureTests",
+            dependencies: ["AuthFeature", "SharedDomain", "PersistenceKit"],
+            path: "Tests/AuthFeatureTests"
         ),
         .testTarget(
             name: "AppShellTests",

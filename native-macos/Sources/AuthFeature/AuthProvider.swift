@@ -3,6 +3,19 @@ import NetworkingKit
 import PersistenceKit
 import SharedDomain
 
+public enum AuthProviderMode: String, Equatable, Sendable {
+    case preview
+    case live
+
+    public init(environmentValue: String?) {
+        if environmentValue?.lowercased() == "live" {
+            self = .live
+        } else {
+            self = .preview
+        }
+    }
+}
+
 public protocol XboxAuthProviding: Sendable {
     func requestDeviceCode() async throws -> DeviceCodeChallenge
     func completeDeviceCode(challenge: DeviceCodeChallenge) async throws -> AuthSignInResult
@@ -17,7 +30,8 @@ public struct PreviewXboxAuthProvider: XboxAuthProviding {
             deviceCode: "preview-device-code",
             verificationURL: "https://microsoft.com/devicelogin",
             message: "Enter the code at microsoft.com/devicelogin to continue sign-in.",
-            expiresInSeconds: 900
+            expiresInSeconds: 900,
+            pollIntervalSeconds: 1
         )
     }
 
@@ -46,6 +60,10 @@ public struct PreviewXboxAuthProvider: XboxAuthProviding {
 }
 
 public struct LiveXboxAuthProvider: XboxAuthProviding {
+    private struct OAuthErrorResponse: Decodable {
+        let error: String
+    }
+
     private let httpClient: HTTPClient
     private let clientID: String
     private let deviceCodeBaseURL: URL
@@ -79,12 +97,13 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             deviceCode: payload.deviceCode,
             verificationURL: payload.verificationURI,
             message: payload.message,
-            expiresInSeconds: payload.expiresIn
+            expiresInSeconds: payload.expiresIn,
+            pollIntervalSeconds: payload.interval
         )
     }
 
     public func completeDeviceCode(challenge: DeviceCodeChallenge) async throws -> AuthSignInResult {
-        let tokenResponse = try await fetchOAuthTokens(deviceCode: challenge.deviceCode)
+        let tokenResponse = try await pollForOAuthTokens(challenge: challenge)
         let userAuth = try await authenticateXbox(accessToken: tokenResponse.accessToken)
         let webToken = try await authorizeXSTS(
             userToken: userAuth.token,
@@ -124,10 +143,44 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
         return AuthSignInResult(authState: state, tokens: tokens)
     }
 
-    private func fetchOAuthTokens(deviceCode: String) async throws -> OAuthTokenResponse {
+    private func pollForOAuthTokens(challenge: DeviceCodeChallenge) async throws -> OAuthTokenResponse {
+        let timeout = UInt64(challenge.expiresInSeconds) * 1_000_000_000
+        let started = DispatchTime.now().uptimeNanoseconds
+        var interval = UInt64(challenge.pollIntervalSeconds) * 1_000_000_000
+
+        while true {
+            let response = try await fetchOAuthTokenResponse(deviceCode: challenge.deviceCode)
+
+            if (200...299).contains(response.response.statusCode) {
+                return try httpClient.decode(OAuthTokenResponse.self, from: response)
+            }
+
+            let error = try? httpClient.decode(OAuthErrorResponse.self, from: response)
+            switch error?.error {
+            case "authorization_pending":
+                break
+            case "slow_down":
+                interval += 5 * 1_000_000_000
+            default:
+                throw LiveAuthProviderError.oauth(error?.error ?? "unexpected_status_\(response.response.statusCode)")
+            }
+
+            if DispatchTime.now().uptimeNanoseconds - started >= timeout {
+                throw LiveAuthProviderError.timedOut
+            }
+
+            try await Task.sleep(nanoseconds: interval)
+        }
+    }
+
+    private func fetchOAuthTokenResponse(deviceCode: String) async throws -> HTTPResponse {
         let endpoint = AuthEndpoints.deviceCodeToken(clientID: clientID, deviceCode: deviceCode)
         let request = try RequestBuilder.make(baseURL: deviceCodeBaseURL, endpoint: endpoint)
-        let response = try await httpClient.send(request)
+        return try await httpClient.send(request)
+    }
+
+    private func fetchOAuthTokens(deviceCode: String) async throws -> OAuthTokenResponse {
+        let response = try await fetchOAuthTokenResponse(deviceCode: deviceCode)
         return try httpClient.decode(OAuthTokenResponse.self, from: response)
     }
 
@@ -152,4 +205,9 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
         let response = try await httpClient.send(request)
         return try httpClient.decode(StreamingTokenResponse.self, from: response)
     }
+}
+
+public enum LiveAuthProviderError: Error, Equatable {
+    case oauth(String)
+    case timedOut
 }

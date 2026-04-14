@@ -6,4 +6,5 @@ import Testing
 func appEnvironmentBuildsDefaultDependencies() throws {
     let environment = AppEnvironment.makePreview()
     #expect(environment.router.currentRoute == .home)
+    #expect(environment.authMode == .preview)
 }

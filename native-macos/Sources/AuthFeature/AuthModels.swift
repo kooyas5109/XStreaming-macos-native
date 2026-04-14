@@ -8,19 +8,22 @@ public struct DeviceCodeChallenge: Equatable, Sendable {
     public let verificationURL: String
     public let message: String
     public let expiresInSeconds: Int
+    public let pollIntervalSeconds: Int
 
     public init(
         userCode: String,
         deviceCode: String,
         verificationURL: String,
         message: String,
-        expiresInSeconds: Int
+        expiresInSeconds: Int,
+        pollIntervalSeconds: Int = 5
     ) {
         self.userCode = userCode
         self.deviceCode = deviceCode
         self.verificationURL = verificationURL
         self.message = message
         self.expiresInSeconds = expiresInSeconds
+        self.pollIntervalSeconds = pollIntervalSeconds
     }
 }
 

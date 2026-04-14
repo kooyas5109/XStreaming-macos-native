@@ -90,6 +90,13 @@ public struct RootView: View {
                     tint: .cyan
                 )
 
+                ShellToolbarBadge(
+                    label: strings.authModeTitle,
+                    value: authModeLabel(strings: strings),
+                    icon: "person.badge.key",
+                    tint: environment.authMode == .live ? .green : .secondary
+                )
+
                 Button {
                     showAuthSheet = true
                 } label: {
@@ -219,11 +226,24 @@ public struct RootView: View {
             } label: {
                 Label(strings.manageAccountAction, systemImage: "person.crop.circle")
             }
+
+            Text("\(strings.authModeTitle): \(authModeLabel(strings: strings))")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(.thinMaterial)
         )
+    }
+
+    private func authModeLabel(strings: ShellStrings) -> String {
+        switch environment.authMode {
+        case .preview:
+            return strings.authModePreview
+        case .live:
+            return strings.authModeLive
+        }
     }
 }

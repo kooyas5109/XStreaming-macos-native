@@ -345,6 +345,9 @@ public struct ShellStrings {
     public var accountSignedIn: String { language == .english ? "Signed In" : "已登录" }
     public var accountSignedOut: String { language == .english ? "Signed Out" : "未登录" }
     public var manageAccountAction: String { language == .english ? "Manage Sign-In" : "管理登录" }
+    public var authModeTitle: String { language == .english ? "Auth Mode" : "登录模式" }
+    public var authModePreview: String { language == .english ? "Preview" : "预览" }
+    public var authModeLive: String { language == .english ? "Live" : "在线" }
 
     public func streamStateLabel(_ state: StreamingStateMachine.State) -> String {
         switch state {

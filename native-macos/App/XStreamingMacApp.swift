@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct XStreamingMacApp: App {
-    private let environment = AppEnvironment.makePreview()
+    private let environment = AppEnvironment.makeDefault()
 
     var body: some Scene {
         WindowGroup("XStreaming macOS Native") {

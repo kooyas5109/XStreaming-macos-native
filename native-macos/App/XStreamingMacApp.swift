@@ -1,0 +1,13 @@
+import AppShell
+import SwiftUI
+
+@main
+struct XStreamingMacApp: App {
+    private let environment = AppEnvironment.makePreview()
+
+    var body: some Scene {
+        WindowGroup("XStreaming macOS Native") {
+            RootView(environment: environment)
+        }
+    }
+}

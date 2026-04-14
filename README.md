@@ -18,6 +18,29 @@ Current focus:
 - Electron to native mapping: [docs/migration/electron-to-native-mapping.md](./docs/migration/electron-to-native-mapping.md)
 - Execution plan: [docs/plans/2026-04-14-xstreaming-macos-native-refactor.md](./docs/plans/2026-04-14-xstreaming-macos-native-refactor.md)
 
+## Local Build And Run
+
+```bash
+swift build --package-path native-macos
+swift test --package-path native-macos
+swift run --package-path native-macos XStreamingMacApp
+```
+
+Current preview behavior:
+
+- launches the native shell
+- shows Home, Cloud, Settings, and Stream routes
+- renders the native streaming preview surface through `NativeStreamingEngine`
+
+## CI
+
+GitHub Actions workflow:
+
+- `.github/workflows/native-macos.yml`
+- runs `swift build --package-path native-macos`
+- runs `swift test --package-path native-macos`
+- runs an app launch smoke test through `IntegrationTests`
+
 ## Relationship To The Original Project
 
 - Original desktop project: behavior reference and current release path
@@ -29,3 +52,4 @@ Current focus:
 2. Define shared domain types and persistence.
 3. Implement auth, console, catalog, and streaming service seams.
 4. Ship a native shell before replacing the streaming engine.
+5. Add CI, integration coverage, and packaging scaffolding for the native app.

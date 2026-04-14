@@ -163,6 +163,11 @@ let package = Package(
             name: "RegressionTests",
             dependencies: ["NetworkingKit", "SharedDomain"],
             path: "Tests/RegressionTests"
+        ),
+        .testTarget(
+            name: "IntegrationTests",
+            dependencies: ["AppShell"],
+            path: "Tests/IntegrationTests"
         )
     ]
 )

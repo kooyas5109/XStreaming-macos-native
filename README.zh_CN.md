@@ -18,6 +18,29 @@ XStreaming 桌面客户端的 macOS 原生重建项目。
 - Electron 到原生的映射文档：[docs/migration/electron-to-native-mapping.md](./docs/migration/electron-to-native-mapping.md)
 - 执行计划：[docs/plans/2026-04-14-xstreaming-macos-native-refactor.md](./docs/plans/2026-04-14-xstreaming-macos-native-refactor.md)
 
+## 本地构建与运行
+
+```bash
+swift build --package-path native-macos
+swift test --package-path native-macos
+swift run --package-path native-macos XStreamingMacApp
+```
+
+当前阶段运行后可以看到：
+
+- 原生 shell 主界面
+- Home、Cloud、Settings、Stream 路由
+- 通过 `NativeStreamingEngine` 渲染的原生串流预览 surface
+
+## CI
+
+GitHub Actions 工作流：
+
+- `.github/workflows/native-macos.yml`
+- 执行 `swift build --package-path native-macos`
+- 执行 `swift test --package-path native-macos`
+- 通过 `IntegrationTests` 执行 app launch smoke test
+
 ## 与原项目的关系
 
 - 原桌面项目：当前发布路径和行为参考实现
@@ -29,3 +52,4 @@ XStreaming 桌面客户端的 macOS 原生重建项目。
 2. 定义共享领域模型和持久化层。
 3. 建立认证、主机、目录和串流服务边界。
 4. 先交付原生 shell，再替换串流引擎。
+5. 为原生 app 补齐 CI、集成测试和打包前置骨架。

@@ -35,3 +35,19 @@ func streamingTokenEndpointMatchesLegacyXboxHeaders() throws {
     #expect(request.value(forHTTPHeaderField: "x-gssv-client") == "XboxComBrowser")
     #expect(request.httpMethod == "POST")
 }
+
+@Test
+func streamingTokenResponseDecodesLegacyGsTokenField() throws {
+    let data = Data(
+        """
+        {
+          "gsToken": "stream-token",
+          "tokenType": "JWT",
+          "durationInSeconds": 3600
+        }
+        """.utf8
+    )
+
+    let decoded = try JSONDecoder().decode(StreamingTokenResponse.self, from: data)
+    #expect(decoded.token == "stream-token")
+}

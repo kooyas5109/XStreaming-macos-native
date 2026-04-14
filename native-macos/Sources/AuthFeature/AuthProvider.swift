@@ -117,10 +117,7 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             userToken: gssvToken.token,
             offeringID: "xhome"
         )
-        let xCloudToken = try? await fetchStreamingToken(
-            userToken: gssvToken.token,
-            offeringID: "xgpuweb"
-        )
+        let xCloudToken = try await fetchPreferredCloudStreamingToken(userToken: gssvToken.token)
 
         let state = AuthState(
             isSignedIn: true,
@@ -204,6 +201,18 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
         let request = try RequestBuilder.make(baseURL: baseURL, endpoint: endpoint)
         let response = try await httpClient.send(request)
         return try httpClient.decode(StreamingTokenResponse.self, from: response)
+    }
+
+    private func fetchPreferredCloudStreamingToken(userToken: String) async throws -> StreamingTokenResponse? {
+        do {
+            return try await fetchStreamingToken(userToken: userToken, offeringID: "xgpuweb")
+        } catch {
+            do {
+                return try await fetchStreamingToken(userToken: userToken, offeringID: "xgpuwebf2p")
+            } catch {
+                return nil
+            }
+        }
     }
 }
 

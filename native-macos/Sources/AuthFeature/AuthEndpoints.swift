@@ -131,7 +131,7 @@ struct StreamingTokenResponse: Decodable, Equatable, Sendable {
     let token: String
 
     enum CodingKeys: String, CodingKey {
-        case token = "token"
+        case token = "gsToken"
     }
 }
 

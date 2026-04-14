@@ -93,7 +93,15 @@ func liveProviderPollsUntilDeviceCodeCompletes() async throws {
             statusCode: 200,
             body: """
             {
-              "token": "xhome-stream-token"
+              "gsToken": "xhome-stream-token"
+            }
+            """
+        ),
+        MockURLSession.Response(
+            statusCode: 500,
+            body: """
+            {
+              "error": "unsupported_region"
             }
             """
         ),
@@ -101,7 +109,7 @@ func liveProviderPollsUntilDeviceCodeCompletes() async throws {
             statusCode: 200,
             body: """
             {
-              "token": "xcloud-stream-token"
+              "gsToken": "xcloud-stream-token"
             }
             """
         )
@@ -118,7 +126,7 @@ func liveProviderPollsUntilDeviceCodeCompletes() async throws {
     #expect(result.tokens.refreshToken == "refresh-token")
     #expect(result.tokens.xHomeStreamingToken == "xhome-stream-token")
     #expect(result.tokens.xCloudStreamingToken == "xcloud-stream-token")
-    #expect(await session.consumedResponses == 8)
+    #expect(await session.consumedResponses == 9)
 }
 
 private actor ResponseCounter {

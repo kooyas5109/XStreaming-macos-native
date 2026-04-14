@@ -1,0 +1,31 @@
+# XStreaming macOS Native
+
+Native macOS rewrite of the XStreaming desktop client.
+
+## Status
+
+This repository is the isolated home for the macOS-native rebuild. It is intentionally separate from the original Electron/Nextron project so the native architecture, tooling, and release flow can evolve without destabilizing the existing desktop app.
+
+Current focus:
+
+- define the native architecture baseline
+- map Electron behavior into native modules
+- execute the phased migration plan
+
+## Repository Docs
+
+- Architecture baseline: [docs/architecture/native-macos.md](./docs/architecture/native-macos.md)
+- Electron to native mapping: [docs/migration/electron-to-native-mapping.md](./docs/migration/electron-to-native-mapping.md)
+- Execution plan: [docs/plans/2026-04-14-xstreaming-macos-native-refactor.md](./docs/plans/2026-04-14-xstreaming-macos-native-refactor.md)
+
+## Relationship To The Original Project
+
+- Original desktop project: behavior reference and current release path
+- This repository: native macOS rebuild using SwiftUI, Swift Package Manager, typed modules, and automated tests
+
+## Near-Term Milestones
+
+1. Scaffold the native macOS workspace.
+2. Define shared domain types and persistence.
+3. Implement auth, console, catalog, and streaming service seams.
+4. Ship a native shell before replacing the streaming engine.

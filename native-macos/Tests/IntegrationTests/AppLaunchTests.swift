@@ -22,7 +22,8 @@ func appLaunchSmokeSupportsPreviewNavigationAndStreamSurface() {
     let streamView = StreamContainerView(
         route: .streamCloud(id: "title-1"),
         streamingService: environment.streamingService,
-        engine: environment.streamingEngine
+        engine: environment.streamingEngine,
+        router: environment.router
     )
 
     #expect(environment.router.currentRoute == .streamCloud(id: "title-1"))

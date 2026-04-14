@@ -153,6 +153,11 @@ let package = Package(
             name: "AppShellTests",
             dependencies: ["AppShell"],
             path: "Tests/AppShellTests"
+        ),
+        .testTarget(
+            name: "SupportKitTests",
+            dependencies: ["SupportKit"],
+            path: "Tests/SupportKitTests"
         )
     ]
 )

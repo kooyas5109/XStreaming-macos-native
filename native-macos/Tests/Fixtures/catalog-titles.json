@@ -1,0 +1,27 @@
+{
+  "results": [
+    {
+      "titleID": "title-1",
+      "productID": "product-1",
+      "xboxTitleID": 1001,
+      "productTitle": "Forza Horizon",
+      "publisherName": "Xbox Game Studios",
+      "supportsInAppPurchases": false,
+      "supportedInputTypes": [
+        "controller"
+      ]
+    },
+    {
+      "titleID": "title-2",
+      "productID": "product-2",
+      "xboxTitleID": 1002,
+      "productTitle": "Halo Infinite",
+      "publisherName": "Xbox Game Studios",
+      "supportsInAppPurchases": true,
+      "supportedInputTypes": [
+        "controller",
+        "mouseAndKeyboard"
+      ]
+    }
+  ]
+}

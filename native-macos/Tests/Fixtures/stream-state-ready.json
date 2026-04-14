@@ -1,0 +1,7 @@
+{
+  "sessionId": "stream-session-1",
+  "sessionPath": "/v5/sessions/cloud/stream-session-1",
+  "state": "readyToConnect",
+  "waitingTimeMinutes": 0,
+  "errorDetails": null
+}

@@ -158,6 +158,11 @@ let package = Package(
             name: "SupportKitTests",
             dependencies: ["SupportKit"],
             path: "Tests/SupportKitTests"
+        ),
+        .testTarget(
+            name: "RegressionTests",
+            dependencies: ["NetworkingKit", "SharedDomain"],
+            path: "Tests/RegressionTests"
         )
     ]
 )

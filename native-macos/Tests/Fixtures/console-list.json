@@ -1,0 +1,30 @@
+{
+  "result": [
+    {
+      "id": "console-1",
+      "name": "Living Room Xbox",
+      "locale": "en-US",
+      "region": "US",
+      "consoleType": "xboxSeriesX",
+      "powerState": "connectedStandby",
+      "remoteManagementEnabled": true,
+      "consoleStreamingEnabled": true,
+      "wirelessWarning": false,
+      "outOfHomeWarning": false,
+      "storageDevices": []
+    },
+    {
+      "id": "console-2",
+      "name": "Bedroom Xbox",
+      "locale": "en-US",
+      "region": "US",
+      "consoleType": "xboxSeriesS",
+      "powerState": "off",
+      "remoteManagementEnabled": true,
+      "consoleStreamingEnabled": true,
+      "wirelessWarning": false,
+      "outOfHomeWarning": false,
+      "storageDevices": []
+    }
+  ]
+}

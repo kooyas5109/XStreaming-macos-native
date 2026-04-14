@@ -121,7 +121,8 @@ private actor TestStreamingEngine: StreamingEngineProtocol {
         supportsAudio: true,
         supportsPointerInput: false,
         supportsControllerInput: true,
-        supportsNativeOverlay: false
+        supportsNativeOverlay: false,
+        supportsRumble: false
     )
 
     var prepareCalls = 0

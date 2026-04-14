@@ -2,9 +2,11 @@ import SwiftUI
 
 public struct RootView: View {
     private let environment: AppEnvironment
+    @ObservedObject private var router: AppRouter
 
     public init(environment: AppEnvironment) {
         self.environment = environment
+        _router = ObservedObject(wrappedValue: environment.router)
     }
 
     public var body: some View {
@@ -23,16 +25,16 @@ public struct RootView: View {
         }
         .frame(minWidth: 1100, minHeight: 720)
         .task {
-            environment.logger.info("RootView loaded with route: \(String(describing: environment.router.currentRoute))")
+            environment.logger.info("RootView loaded with route: \(String(describing: router.currentRoute))")
         }
     }
 
     private var selectedRouteBinding: Binding<AppRouter.Route?> {
         Binding(
             get: {
-                switch environment.router.currentRoute {
+                switch router.currentRoute {
                 case .home, .cloud, .settings:
-                    return environment.router.currentRoute
+                    return router.currentRoute
                 case .streamConsole:
                     return .home
                 case .streamCloud:
@@ -41,26 +43,26 @@ public struct RootView: View {
             },
             set: { route in
                 guard let route else { return }
-                environment.router.route(to: route)
+                router.route(to: route)
             }
         )
     }
 
     @ViewBuilder
     private var detailView: some View {
-        switch environment.router.currentRoute {
+        switch router.currentRoute {
         case .home:
             HomeView(
                 viewModel: HomeViewModel(
                     service: environment.consoleService,
-                    router: environment.router
+                    router: router
                 )
             )
 
         case .cloud:
             CloudView(
                 service: environment.catalogService,
-                router: environment.router
+                router: router
             )
 
         case .settings:

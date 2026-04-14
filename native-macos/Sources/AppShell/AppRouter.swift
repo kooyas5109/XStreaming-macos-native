@@ -1,7 +1,8 @@
+import Combine
 import Foundation
 
 @MainActor
-public final class AppRouter {
+public final class AppRouter: ObservableObject {
     public enum Route: Hashable, Sendable {
         case home
         case cloud
@@ -10,7 +11,7 @@ public final class AppRouter {
         case streamCloud(id: String)
     }
 
-    public private(set) var currentRoute: Route
+    @Published public private(set) var currentRoute: Route
 
     public init(initialRoute: Route = .home) {
         self.currentRoute = initialRoute

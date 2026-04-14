@@ -17,6 +17,7 @@ Current focus:
 - Architecture baseline: [docs/architecture/native-macos.md](./docs/architecture/native-macos.md)
 - Electron to native mapping: [docs/migration/electron-to-native-mapping.md](./docs/migration/electron-to-native-mapping.md)
 - Execution plan: [docs/plans/2026-04-14-xstreaming-macos-native-refactor.md](./docs/plans/2026-04-14-xstreaming-macos-native-refactor.md)
+- Execution status snapshot: [docs/plans/2026-04-15-native-refactor-status.md](./docs/plans/2026-04-15-native-refactor-status.md)
 
 ## Local Build And Run
 

@@ -8,6 +8,8 @@
 
 **Tech Stack:** Swift 6, SwiftUI, AppKit, Observation, Swift Package Manager, XCTest, Swift Testing, URLSession, WebKit, Keychain Services, GameController, AVFoundation, OSLog, optional WebRTC native SDK, reference guidance from `@build-macos-apps`
 
+**Execution status tracking:** See `docs/plans/2026-04-15-native-refactor-status.md` for the current "done / partial / not started" snapshot so demo-shell work is not confused with fully live product behavior.
+
 ---
 
 ## Existing System Summary

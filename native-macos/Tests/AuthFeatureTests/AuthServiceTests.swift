@@ -24,3 +24,21 @@ func authServiceRestoresSignedInStateWithStoredTokens() async throws {
     #expect(state.isSignedIn == true)
     #expect(state.userProfile?.gamertag == "Signed In User")
 }
+
+@Test
+func authServiceCompletesDeviceCodeFlowAndPersistsTokens() async throws {
+    let tokenStore = InMemoryTokenStore()
+    let service = AuthService(
+        repository: DefaultAuthRepository(),
+        tokenStore: tokenStore
+    )
+
+    let challenge = try await service.beginInteractiveSignIn()
+    let state = try await service.completeInteractiveSignIn(using: challenge)
+    let persisted = try tokenStore.load()
+
+    #expect(challenge.userCode.isEmpty == false)
+    #expect(state.isSignedIn == true)
+    #expect(persisted?.authToken?.isEmpty == false)
+    #expect(persisted?.webToken == "native-web-token")
+}

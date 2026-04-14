@@ -19,6 +19,16 @@ public final class AuthService: @unchecked Sendable {
         return try await repository.restoreSession(from: tokens)
     }
 
+    public func beginInteractiveSignIn() async throws -> DeviceCodeChallenge {
+        try await repository.beginInteractiveSignIn()
+    }
+
+    public func completeInteractiveSignIn(using challenge: DeviceCodeChallenge) async throws -> AuthState {
+        let result = try await repository.completeInteractiveSignIn(using: challenge)
+        try tokenStore.save(result.tokens)
+        return result.authState
+    }
+
     public func signOut() async throws -> AuthState {
         try await repository.signOut()
         try tokenStore.clear()

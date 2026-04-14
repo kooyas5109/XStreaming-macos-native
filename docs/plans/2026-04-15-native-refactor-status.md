@@ -25,6 +25,7 @@ These areas are implemented, committed, and verified by tests:
 - Bilingual shell support for English and Simplified Chinese
 - CI workflow and integration smoke tests
 - Native command menu and stream quick actions for demo flows
+- Native auth shell entry with silent-restore and device-code sign-in state flow
 
 ## Implemented But Still Demo-Oriented
 
@@ -46,7 +47,8 @@ These areas have structure in place, but the real product path is not fully conn
 
 - AuthFeature
   - Typed service and view model exist
-  - Real Microsoft/Xbox sign-in flow is not fully wired
+  - Native device-code sign-in flow is modeled and visible in the shell
+  - Real Microsoft/Xbox sign-in provider is not fully wired
 - StreamingFeature
   - Session core and engine abstractions exist
   - Preview/native shell works

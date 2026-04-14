@@ -1,14 +1,18 @@
 import SwiftUI
+import AuthFeature
 
 public struct RootView: View {
     private let environment: AppEnvironment
     @ObservedObject private var router: AppRouter
     @StateObject private var localization: ShellLocalizationStore
+    @StateObject private var authViewModel: AuthViewModel
+    @State private var showAuthSheet = false
 
     public init(environment: AppEnvironment) {
         self.environment = environment
         _router = ObservedObject(wrappedValue: environment.router)
         _localization = StateObject(wrappedValue: ShellLocalizationStore(settingsStore: environment.settingsStore))
+        _authViewModel = StateObject(wrappedValue: AuthViewModel(service: environment.authService))
     }
 
     public var body: some View {
@@ -50,6 +54,10 @@ public struct RootView: View {
                 )
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
+
+                authStatusCard(strings: strings)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
             }
         } detail: {
             detailView
@@ -82,6 +90,15 @@ public struct RootView: View {
                     tint: .cyan
                 )
 
+                Button {
+                    showAuthSheet = true
+                } label: {
+                    Label(
+                        authViewModel.state.authState.isSignedIn ? strings.accountSignedIn : strings.accountSignedOut,
+                        systemImage: authViewModel.state.authState.isSignedIn ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.exclamationmark"
+                    )
+                }
+
                 if router.currentRoute != .settings {
                     Button {
                         router.route(to: .settings)
@@ -94,6 +111,11 @@ public struct RootView: View {
         .task {
             localization.load()
             environment.logger.info("RootView loaded with route: \(String(describing: router.currentRoute))")
+            await authViewModel.restoreSession()
+        }
+        .sheet(isPresented: $showAuthSheet) {
+            AuthView(viewModel: authViewModel, language: localization.language)
+                .frame(minWidth: 480, minHeight: 260)
         }
     }
 
@@ -170,5 +192,38 @@ public struct RootView: View {
                 language: localization.language
             )
         }
+    }
+
+    @ViewBuilder
+    private func authStatusCard(strings: ShellStrings) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(strings.accountTitle)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text(authViewModel.state.authState.isSignedIn ? strings.accountSignedIn : strings.accountSignedOut)
+                .font(.callout.weight(.semibold))
+
+            if let gamertag = authViewModel.state.authState.userProfile?.gamertag, gamertag.isEmpty == false {
+                Text(gamertag)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if let statusMessage = authViewModel.state.authState.statusMessage {
+                Text(statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                showAuthSheet = true
+            } label: {
+                Label(strings.manageAccountAction, systemImage: "person.crop.circle")
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.thinMaterial)
+        )
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import AuthFeature
 import CatalogFeature
 import ConsoleFeature
 import PersistenceKit
@@ -10,6 +11,7 @@ public struct AppEnvironment: Sendable {
     public let router: AppRouter
     public let logger: AppLogger
     public let streamCommandCenter: StreamCommandCenter
+    public let authService: AuthService
     public let consoleService: ConsoleService
     public let catalogService: CatalogService
     public let settingsStore: SettingsStoreProtocol
@@ -20,6 +22,7 @@ public struct AppEnvironment: Sendable {
         router: AppRouter,
         logger: AppLogger,
         streamCommandCenter: StreamCommandCenter,
+        authService: AuthService,
         consoleService: ConsoleService,
         catalogService: CatalogService,
         settingsStore: SettingsStoreProtocol,
@@ -29,6 +32,7 @@ public struct AppEnvironment: Sendable {
         self.router = router
         self.logger = logger
         self.streamCommandCenter = streamCommandCenter
+        self.authService = authService
         self.consoleService = consoleService
         self.catalogService = catalogService
         self.settingsStore = settingsStore
@@ -44,6 +48,10 @@ public struct AppEnvironment: Sendable {
             router: AppRouter(),
             logger: .preview(category: "app"),
             streamCommandCenter: StreamCommandCenter(),
+            authService: AuthService(
+                repository: DefaultAuthRepository(),
+                tokenStore: InMemoryTokenStore()
+            ),
             consoleService: .preview(),
             catalogService: .preview(),
             settingsStore: InMemorySettingsStore(),

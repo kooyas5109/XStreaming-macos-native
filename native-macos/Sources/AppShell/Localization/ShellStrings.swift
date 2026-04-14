@@ -341,6 +341,10 @@ public struct ShellStrings {
     public var nativeMouseKeyboardBadgeTitle: String { language == .english ? "Mouse & Keyboard" : "键鼠" }
     public var vibrationBadgeTitle: String { language == .english ? "Vibration" : "震动" }
     public var bitrateBadgeTitle: String { language == .english ? "Bitrate Plan" : "码率方案" }
+    public var accountTitle: String { language == .english ? "Account" : "账户" }
+    public var accountSignedIn: String { language == .english ? "Signed In" : "已登录" }
+    public var accountSignedOut: String { language == .english ? "Signed Out" : "未登录" }
+    public var manageAccountAction: String { language == .english ? "Manage Sign-In" : "管理登录" }
 
     public func streamStateLabel(_ state: StreamingStateMachine.State) -> String {
         switch state {

@@ -34,6 +34,49 @@ public final class AuthViewModel: ObservableObject {
         }
     }
 
+    public func beginInteractiveSignIn() async {
+        state.errorMessage = nil
+        state.authState = AuthState(
+            isSignedIn: false,
+            isAuthenticating: true,
+            userProfile: state.authState.userProfile,
+            statusMessage: "Requesting device code..."
+        )
+
+        do {
+            let challenge = try await service.beginInteractiveSignIn()
+            state.authState = AuthState(
+                isSignedIn: false,
+                isAuthenticating: false,
+                userProfile: nil,
+                statusMessage: challenge.message
+            )
+            state.deviceCodeChallenge = challenge
+        } catch {
+            state.authState = .signedOut
+            state.errorMessage = error.localizedDescription
+        }
+    }
+
+    public func completeInteractiveSignIn() async {
+        guard let challenge = state.deviceCodeChallenge else { return }
+        state.errorMessage = nil
+        state.authState = AuthState(
+            isSignedIn: false,
+            isAuthenticating: true,
+            userProfile: nil,
+            statusMessage: "Waiting for device code confirmation..."
+        )
+
+        do {
+            let signedInState = try await service.completeInteractiveSignIn(using: challenge)
+            state = AuthViewState(authState: signedInState)
+        } catch {
+            state.authState = .signedOut
+            state.errorMessage = error.localizedDescription
+        }
+    }
+
     public func signOut() async {
         do {
             let signedOutState = try await service.signOut()

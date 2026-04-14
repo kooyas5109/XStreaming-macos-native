@@ -27,3 +27,22 @@ func authViewModelRestoresStateFromService() async {
     #expect(viewModel.state.authState.isSignedIn == true)
     #expect(viewModel.state.errorMessage == nil)
 }
+
+@MainActor
+@Test
+func authViewModelAdvancesThroughDeviceCodeSignIn() async {
+    let tokenStore = InMemoryTokenStore()
+    let service = AuthService(
+        repository: DefaultAuthRepository(),
+        tokenStore: tokenStore
+    )
+    let viewModel = AuthViewModel(service: service)
+
+    await viewModel.beginInteractiveSignIn()
+    #expect(viewModel.state.deviceCodeChallenge?.userCode == "ABCD-EFGH")
+    #expect(viewModel.state.authState.isSignedIn == false)
+
+    await viewModel.completeInteractiveSignIn()
+    #expect(viewModel.state.authState.isSignedIn == true)
+    #expect(viewModel.state.deviceCodeChallenge == nil)
+}

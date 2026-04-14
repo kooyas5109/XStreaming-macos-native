@@ -121,7 +121,13 @@ public struct RootView: View {
             await authViewModel.restoreSession()
         }
         .sheet(isPresented: $showAuthSheet) {
-            AuthView(viewModel: authViewModel, language: localization.language)
+            AuthView(
+                viewModel: authViewModel,
+                language: localization.language,
+                onSignedIn: {
+                    showAuthSheet = false
+                }
+            )
                 .frame(minWidth: 480, minHeight: 260)
         }
     }

@@ -2,12 +2,19 @@ import SharedDomain
 import SwiftUI
 
 public struct AuthView: View {
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: AuthViewModel
     private let language: AppLanguage
+    private let onSignedIn: (() -> Void)?
 
-    public init(viewModel: AuthViewModel, language: AppLanguage = .english) {
+    public init(
+        viewModel: AuthViewModel,
+        language: AppLanguage = .english,
+        onSignedIn: (() -> Void)? = nil
+    ) {
         _viewModel = StateObject(wrappedValue: viewModel)
         self.language = language
+        self.onSignedIn = onSignedIn
     }
 
     public var body: some View {
@@ -68,10 +75,20 @@ public struct AuthView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
+
+                Button(strings.close) {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
+        .onChange(of: viewModel.state.authState.isSignedIn) { _, isSignedIn in
+            guard isSignedIn else { return }
+            onSignedIn?()
+            dismiss()
+        }
     }
 }
 
@@ -87,4 +104,5 @@ private struct AuthStrings {
     var startSignIn: String { language == .english ? "Start Sign-In" : "开始登录" }
     var completeSignIn: String { language == .english ? "Complete Sign-In" : "完成登录" }
     var signOut: String { language == .english ? "Sign Out" : "退出登录" }
+    var close: String { language == .english ? "Close" : "关闭" }
 }

@@ -10,6 +10,7 @@ public struct StreamContainerView: View {
     private let streamingService: StreamingService
     private let engine: any StreamingEngineProtocol
     private let router: AppRouter
+    private let commandCenter: StreamCommandCenter
     private let settingsStore: SettingsStoreProtocol
     private let language: AppLanguage
     @State private var settings: AppSettings = .defaults
@@ -23,6 +24,8 @@ public struct StreamContainerView: View {
     @State private var showAudioPanel = false
     @State private var microphoneOpen = false
     @State private var previewVolume = 8.0
+    @State private var showTextComposer = false
+    @State private var outgoingText = ""
     @State private var infoMessage: String?
     @State private var errorMessage: String?
 
@@ -31,6 +34,7 @@ public struct StreamContainerView: View {
         streamingService: StreamingService,
         engine: any StreamingEngineProtocol,
         router: AppRouter,
+        commandCenter: StreamCommandCenter,
         settingsStore: SettingsStoreProtocol,
         language: AppLanguage
     ) {
@@ -38,6 +42,7 @@ public struct StreamContainerView: View {
         self.streamingService = streamingService
         self.engine = engine
         self.router = router
+        self.commandCenter = commandCenter
         self.settingsStore = settingsStore
         self.language = language
     }
@@ -190,9 +195,19 @@ public struct StreamContainerView: View {
         .task {
             loadSettings()
             refreshPerformance(for: state)
+            registerCommands()
         }
         .onChange(of: state) { _, newState in
             refreshPerformance(for: newState)
+        }
+        .onChange(of: microphoneOpen) { _, _ in
+            updateCommandContext()
+        }
+        .onDisappear {
+            commandCenter.unregister(for: route)
+        }
+        .sheet(isPresented: $showTextComposer) {
+            sendTextSheet(strings: strings)
         }
     }
 
@@ -286,13 +301,33 @@ public struct StreamContainerView: View {
                     }
 
                     Button(strings.fullscreenAction) {
-                        WindowControls.toggleFullscreen()
+                        handleToggleFullscreen()
+                    }
+
+                    if canSendText {
+                        Button(strings.sendTextAction) {
+                            handleSendText()
+                        }
+
+                        Button(strings.pressNexusAction) {
+                            handlePressNexus()
+                        }
+
+                        Button(strings.longPressNexusAction) {
+                            handleLongPressNexus()
+                        }
                     }
 
                     Divider()
 
+                    if canPowerOff {
+                        Button(strings.disconnectAndPowerOffAction, role: .destructive) {
+                            handleDisconnectAndPowerOff()
+                        }
+                    }
+
                     Button(strings.disconnectAction, role: .destructive) {
-                        router.route(to: backRoute)
+                        handleDisconnect()
                     }
                 } label: {
                     Label(strings.quickControlsTitle, systemImage: "ellipsis.circle")
@@ -328,11 +363,44 @@ public struct StreamContainerView: View {
                     label: "\(strings.bitrateBadgeTitle): \(Int(settings.xcloudBitrate))/\(Int(settings.xhomeBitrate))",
                     tint: .secondary
                 )
-                Text(strings.disconnectHint)
+                Text(strings.commandMenuHint)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    @ViewBuilder
+    private func sendTextSheet(strings: ShellStrings) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text(strings.sendTextTitle)
+                .font(.title3.weight(.semibold))
+
+            Text(strings.sendTextPrompt)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            TextField(strings.sendTextPlaceholder, text: $outgoingText, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(3, reservesSpace: true)
+
+            HStack {
+                Spacer()
+
+                Button(strings.sendTextCancel) {
+                    outgoingText = ""
+                    showTextComposer = false
+                }
+
+                Button(strings.sendTextConfirm) {
+                    commitOutgoingText()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(outgoingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(24)
+        .frame(minWidth: 420)
     }
 
     @ViewBuilder
@@ -536,6 +604,7 @@ public struct StreamContainerView: View {
     private func loadSettings() {
         settings = (try? settingsStore.load()) ?? .defaults
         displayOptions = settings.displayOptions
+        updateCommandContext()
     }
 
     private func refreshPerformance(for state: StreamingStateMachine.State? = nil) {
@@ -568,6 +637,86 @@ public struct StreamContainerView: View {
         settings = updated
         try? settingsStore.save(updated)
         infoMessage = ShellStrings(language: language).savedAction
+    }
+
+    private var canSendText: Bool {
+        switch route {
+        case .streamConsole:
+            return true
+        case .streamCloud, .home, .cloud, .settings:
+            return false
+        }
+    }
+
+    private var canPowerOff: Bool {
+        canSendText
+    }
+
+    private func registerCommands() {
+        commandCenter.register(
+            context: commandContext,
+            actions: StreamCommandCenter.Actions(
+                togglePerformance: { showPerformancePanel.toggle() },
+                toggleDisplay: { showDisplayPanel.toggle() },
+                toggleAudio: { showAudioPanel.toggle() },
+                toggleMicrophone: { microphoneOpen.toggle() },
+                toggleFullscreen: { handleToggleFullscreen() },
+                sendText: { handleSendText() },
+                pressNexus: { handlePressNexus() },
+                longPressNexus: { handleLongPressNexus() },
+                disconnect: { handleDisconnect() },
+                disconnectAndPowerOff: { handleDisconnectAndPowerOff() }
+            )
+        )
+    }
+
+    private func updateCommandContext() {
+        commandCenter.updateContext(commandContext)
+    }
+
+    private var commandContext: StreamCommandCenter.Context {
+        StreamCommandCenter.Context(
+            route: route,
+            language: language,
+            canSendText: canSendText,
+            canPowerOff: canPowerOff,
+            isMicrophoneOpen: microphoneOpen
+        )
+    }
+
+    private func handleToggleFullscreen() {
+        WindowControls.toggleFullscreen()
+        infoMessage = ShellStrings(language: language).fullscreenAction
+    }
+
+    private func handleSendText() {
+        outgoingText = ""
+        showTextComposer = true
+    }
+
+    private func handlePressNexus() {
+        infoMessage = ShellStrings(language: language).nexusPressSuccess
+    }
+
+    private func handleLongPressNexus() {
+        infoMessage = ShellStrings(language: language).nexusLongPressSuccess
+    }
+
+    private func handleDisconnect() {
+        router.route(to: backRoute)
+    }
+
+    private func handleDisconnectAndPowerOff() {
+        infoMessage = ShellStrings(language: language).disconnectPowerOffSuccess
+        router.route(to: backRoute)
+    }
+
+    private func commitOutgoingText() {
+        let trimmed = outgoingText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return }
+        infoMessage = ShellStrings(language: language).sendTextSuccess
+        outgoingText = ""
+        showTextComposer = false
     }
 }
 

@@ -9,5 +9,8 @@ struct XStreamingMacApp: App {
         WindowGroup("XStreaming macOS Native") {
             RootView(environment: environment)
         }
+        .commands {
+            StreamCommands(commandCenter: environment.streamCommandCenter)
+        }
     }
 }

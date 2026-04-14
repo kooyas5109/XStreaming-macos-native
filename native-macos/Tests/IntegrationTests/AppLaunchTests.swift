@@ -25,6 +25,7 @@ func appLaunchSmokeSupportsPreviewNavigationAndStreamSurface() {
         streamingService: environment.streamingService,
         engine: environment.streamingEngine,
         router: environment.router,
+        commandCenter: environment.streamCommandCenter,
         settingsStore: environment.settingsStore,
         language: .english
     )

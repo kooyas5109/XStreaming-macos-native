@@ -323,6 +323,20 @@ public struct ShellStrings {
     public var disconnectHint: String {
         language == .english ? "Disconnect returns to the previous catalog view." : "断开连接后会返回上一级目录页面。"
     }
+    public var sendTextAction: String { language == .english ? "Send Text" : "发送文本" }
+    public var pressNexusAction: String { language == .english ? "Press Nexus" : "按下 Nexus" }
+    public var longPressNexusAction: String { language == .english ? "Long Press Nexus" : "长按 Nexus" }
+    public var disconnectAndPowerOffAction: String { language == .english ? "Disconnect & Power Off" : "断开并关机" }
+    public var sendTextTitle: String { language == .english ? "Send text to console" : "发送文本到主机" }
+    public var sendTextPrompt: String { language == .english ? "Mirror the original app's in-stream text input with a native dialog." : "用原生弹窗承接旧项目里的串流内文本输入。" }
+    public var sendTextPlaceholder: String { language == .english ? "Type a short message" : "输入一段简短文本" }
+    public var sendTextConfirm: String { language == .english ? "Send" : "发送" }
+    public var sendTextCancel: String { language == .english ? "Cancel" : "取消" }
+    public var sendTextSuccess: String { language == .english ? "Preview text sent to the connected console." : "预览文本已发送到当前主机。" }
+    public var nexusPressSuccess: String { language == .english ? "Previewed a Nexus button press." : "已预览一次 Nexus 按键。" }
+    public var nexusLongPressSuccess: String { language == .english ? "Previewed a long Nexus button press." : "已预览一次长按 Nexus。" }
+    public var disconnectPowerOffSuccess: String { language == .english ? "Stream disconnected and preview console powered off." : "串流已断开，并已模拟主机关机。" }
+    public var commandMenuHint: String { language == .english ? "Menu actions are also available from the Stream menu and keyboard shortcuts." : "这些动作也可以通过菜单栏里的“串流”菜单和快捷键触发。" }
     public var codecBadgeTitle: String { language == .english ? "Codec" : "编码" }
     public var nativeMouseKeyboardBadgeTitle: String { language == .english ? "Mouse & Keyboard" : "键鼠" }
     public var vibrationBadgeTitle: String { language == .english ? "Vibration" : "震动" }

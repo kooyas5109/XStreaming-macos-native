@@ -9,6 +9,7 @@ import SupportKit
 public struct AppEnvironment: Sendable {
     public let router: AppRouter
     public let logger: AppLogger
+    public let streamCommandCenter: StreamCommandCenter
     public let consoleService: ConsoleService
     public let catalogService: CatalogService
     public let settingsStore: SettingsStoreProtocol
@@ -18,6 +19,7 @@ public struct AppEnvironment: Sendable {
     public init(
         router: AppRouter,
         logger: AppLogger,
+        streamCommandCenter: StreamCommandCenter,
         consoleService: ConsoleService,
         catalogService: CatalogService,
         settingsStore: SettingsStoreProtocol,
@@ -26,6 +28,7 @@ public struct AppEnvironment: Sendable {
     ) {
         self.router = router
         self.logger = logger
+        self.streamCommandCenter = streamCommandCenter
         self.consoleService = consoleService
         self.catalogService = catalogService
         self.settingsStore = settingsStore
@@ -40,6 +43,7 @@ public struct AppEnvironment: Sendable {
         return AppEnvironment(
             router: AppRouter(),
             logger: .preview(category: "app"),
+            streamCommandCenter: StreamCommandCenter(),
             consoleService: .preview(),
             catalogService: .preview(),
             settingsStore: InMemorySettingsStore(),

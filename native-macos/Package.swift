@@ -36,6 +36,10 @@ let package = Package(
             targets: ["CatalogFeature"]
         ),
         .library(
+            name: "StreamingFeature",
+            targets: ["StreamingFeature"]
+        ),
+        .library(
             name: "AppShell",
             targets: ["AppShell"]
         ),
@@ -84,12 +88,17 @@ let package = Package(
             path: "Sources/CatalogFeature"
         ),
         .target(
+            name: "StreamingFeature",
+            dependencies: ["SharedDomain", "PersistenceKit", "NetworkingKit", "SupportKit"],
+            path: "Sources/StreamingFeature"
+        ),
+        .target(
             name: "SupportKit",
             path: "Sources/SupportKit"
         ),
         .target(
             name: "AppShell",
-            dependencies: ["SharedDomain", "SupportKit", "PersistenceKit", "NetworkingKit", "AuthFeature", "SettingsFeature", "ConsoleFeature", "CatalogFeature"],
+            dependencies: ["SharedDomain", "SupportKit", "PersistenceKit", "NetworkingKit", "AuthFeature", "SettingsFeature", "ConsoleFeature", "CatalogFeature", "StreamingFeature"],
             path: "Sources/AppShell"
         ),
         .executableTarget(
@@ -131,6 +140,11 @@ let package = Package(
             name: "CatalogFeatureTests",
             dependencies: ["CatalogFeature", "SharedDomain", "PersistenceKit"],
             path: "Tests/CatalogFeatureTests"
+        ),
+        .testTarget(
+            name: "StreamingFeatureTests",
+            dependencies: ["StreamingFeature", "SharedDomain", "PersistenceKit"],
+            path: "Tests/StreamingFeatureTests"
         ),
         .testTarget(
             name: "AppShellTests",

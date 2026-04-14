@@ -33,4 +33,8 @@ public final class HomeViewModel: ObservableObject {
     public func openConsole(_ console: ConsoleDevice) {
         router.route(to: .streamConsole(id: console.id))
     }
+
+    public func refresh() async {
+        await load()
+    }
 }

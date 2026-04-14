@@ -145,6 +145,8 @@ public struct ShellStrings {
         : "连接一台 Xbox 后即可开始原生主机串流。"
     }
     public var openAction: String { language == .english ? "Open" : "打开" }
+    public var refreshAction: String { language == .english ? "Refresh" : "刷新" }
+    public var retryAction: String { language == .english ? "Retry" : "重试" }
 
     public var cloudEyebrow: String { cloudTab }
     public var cloudTitle: String { language == .english ? "Cloud Gaming Catalog" : "云游戏目录" }
@@ -167,6 +169,12 @@ public struct ShellStrings {
     public var catalogNewest: String { language == .english ? "Newest" : "最新" }
     public var catalogAll: String { language == .english ? "All" : "全部" }
     public var loadingCatalog: String { language == .english ? "Loading Catalog..." : "正在加载目录..." }
+    public var catalogEmptyTitle: String { language == .english ? "No Titles Available" : "当前没有可用游戏" }
+    public var catalogEmptyDescription: String {
+        language == .english
+        ? "Reload the preview catalog or switch tabs after the service comes online."
+        : "请在服务可用后重新加载预览目录，或切换不同分类。"
+    }
 
     public var settingsEyebrow: String { settingsTab }
     public var settingsTitle: String { language == .english ? "Streaming Preferences" : "串流偏好" }
@@ -261,6 +269,26 @@ public struct ShellStrings {
         language == .english
         ? "The selected streaming engine does not expose a render surface yet."
         : "当前所选串流引擎暂时还没有暴露可渲染画面。"
+    }
+    public var fullscreenAction: String { language == .english ? "Toggle Fullscreen" : "切换全屏" }
+    public var performancePanelTitle: String { language == .english ? "Stream Performance" : "串流性能" }
+    public var performancePanelSubtitle: String {
+        language == .english
+        ? "A staged performance strip inspired by the original app. Layout follows your saved performance style preference."
+        : "参考原项目的阶段性性能信息条，并根据你保存的展示样式切换布局。"
+    }
+    public var resolutionMetric: String { language == .english ? "Resolution" : "分辨率" }
+    public var rttMetric: String { language == .english ? "RTT" : "RTT" }
+    public var jitMetric: String { language == .english ? "JIT" : "JIT" }
+    public var fpsMetric: String { language == .english ? "FPS" : "FPS" }
+    public var frameDropsMetric: String { language == .english ? "FD" : "丢帧" }
+    public var packetLossMetric: String { language == .english ? "PL" : "丢包" }
+    public var bitrateMetric: String { language == .english ? "Bitrate" : "码率" }
+    public var decodeMetric: String { language == .english ? "DT" : "解码" }
+    public var horizonStyle: String { language == .english ? "Horizontal style" : "横向样式" }
+    public var verticalStyle: String { language == .english ? "Vertical style" : "纵向样式" }
+    public var fullscreenEnabledHint: String {
+        language == .english ? "Fullscreen preference will apply on stream start." : "开始串流时会应用全屏偏好。"
     }
 
     public func streamStateLabel(_ state: StreamingStateMachine.State) -> String {

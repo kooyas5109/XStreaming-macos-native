@@ -42,15 +42,20 @@ public struct HomeView: View {
                     )
                 }
 
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                }
-
                 ShellPanel(
                     title: strings.yourConsoles,
                     subtitle: strings.yourConsolesSubtitle
                 ) {
+                    HStack {
+                        Spacer()
+
+                        Button(strings.refreshAction) {
+                            Task {
+                                await viewModel.refresh()
+                            }
+                        }
+                    }
+
                     LazyVStack(spacing: 12) {
                         ForEach(viewModel.consoles, id: \.id) { console in
                             Button {
@@ -70,6 +75,18 @@ public struct HomeView: View {
                                 systemImage: "xbox.logo",
                                 description: Text(strings.noConsolesDescription)
                             )
+                        }
+                    }
+                }
+
+                if let errorMessage = viewModel.errorMessage {
+                    HStack(spacing: 12) {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                        Button(strings.retryAction) {
+                            Task {
+                                await viewModel.refresh()
+                            }
                         }
                     }
                 }

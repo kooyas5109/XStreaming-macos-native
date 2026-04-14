@@ -49,6 +49,16 @@ public struct CloudView: View {
                     title: strings.browseTitles,
                     subtitle: strings.browseTitlesSubtitle
                 ) {
+                    HStack {
+                        Spacer()
+
+                        Button(strings.refreshAction) {
+                            Task {
+                                await viewModel.refresh()
+                            }
+                        }
+                    }
+
                     Picker(strings.catalogPickerLabel, selection: $viewModel.currentTab) {
                         Text(strings.catalogRecently).tag(CatalogTab.recently)
                         Text(strings.catalogNewest).tag(CatalogTab.newest)
@@ -69,13 +79,26 @@ public struct CloudView: View {
                     .overlay {
                         if viewModel.isLoading {
                             ProgressView(strings.loadingCatalog)
+                        } else if viewModel.displayedTitles.isEmpty {
+                            ContentUnavailableView(
+                                strings.catalogEmptyTitle,
+                                systemImage: "square.stack.3d.up.slash.fill",
+                                description: Text(strings.catalogEmptyDescription)
+                            )
                         }
                     }
                 }
 
                 if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
+                    HStack(spacing: 12) {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                        Button(strings.retryAction) {
+                            Task {
+                                await viewModel.refresh()
+                            }
+                        }
+                    }
                 }
             }
             .padding(28)

@@ -154,6 +154,7 @@ public struct RootView: View {
                 streamingService: environment.streamingService,
                 engine: environment.streamingEngine,
                 router: router,
+                settingsStore: environment.settingsStore,
                 language: localization.language
             )
 
@@ -163,6 +164,7 @@ public struct RootView: View {
                 streamingService: environment.streamingService,
                 engine: environment.streamingEngine,
                 router: router,
+                settingsStore: environment.settingsStore,
                 language: localization.language
             )
         }

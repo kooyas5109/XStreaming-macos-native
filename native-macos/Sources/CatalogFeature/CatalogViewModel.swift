@@ -56,4 +56,8 @@ public final class CatalogViewModel: ObservableObject {
     public static func preview() -> CatalogViewModel {
         CatalogViewModel(service: .preview())
     }
+
+    public func refresh() async {
+        try? await load()
+    }
 }

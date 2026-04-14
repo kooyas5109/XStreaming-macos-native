@@ -21,6 +21,7 @@ public struct AuthView: View {
 
     public var body: some View {
         let strings = AuthStrings(language: language)
+        let challenge = viewModel.state.deviceCodeChallenge
 
         VStack(alignment: .leading, spacing: 12) {
             Text(strings.title)
@@ -33,17 +34,27 @@ public struct AuthView: View {
                 Text("\(strings.gamertag): \(gamertag)")
             }
 
-            if let statusMessage = viewModel.state.authState.statusMessage {
+            if challenge != nil {
+                Text(strings.deviceCodeInstructions)
+                    .foregroundStyle(.secondary)
+            } else if let statusMessage = viewModel.state.authState.statusMessage {
                 Text(statusMessage)
                     .foregroundStyle(.secondary)
             }
 
-            if let challenge = viewModel.state.deviceCodeChallenge {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .center, spacing: 10) {
-                        Text("\(strings.deviceCode): \(challenge.userCode)")
-                            .font(.headline.monospaced())
-                            .textSelection(.enabled)
+            if let challenge {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(strings.deviceCode)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(challenge.userCode)
+                                .font(.title3.monospaced().bold())
+                                .textSelection(.enabled)
+                        }
+
+                        Spacer(minLength: 0)
 
                         Button(strings.copyCode) {
                             copyToPasteboard(challenge.userCode, feedback: strings.copiedCode)
@@ -52,16 +63,19 @@ public struct AuthView: View {
                         .controlSize(.small)
                     }
 
-                    HStack(alignment: .center, spacing: 10) {
+                    HStack(alignment: .center, spacing: 12) {
                         if let verificationURL = URL(string: challenge.verificationURL) {
                             Link(destination: verificationURL) {
-                                Label(challenge.verificationURL, systemImage: "link")
-                                    .font(.subheadline)
+                                Label(strings.openVerificationPage, systemImage: "link")
                             }
+                            .textSelection(.enabled)
                         } else {
                             Text(challenge.verificationURL)
                                 .font(.subheadline)
+                                .textSelection(.enabled)
                         }
+
+                        Spacer(minLength: 0)
 
                         Button(strings.copyLink) {
                             copyToPasteboard(challenge.verificationURL, feedback: strings.copiedLink)
@@ -70,12 +84,13 @@ public struct AuthView: View {
                         .controlSize(.small)
                     }
 
-                    Text("\(strings.verificationURL): \(challenge.verificationURL)")
+                    Text(challenge.verificationURL)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
-                .padding(.vertical, 4)
+                .padding(12)
+                .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
 
             if let errorMessage = viewModel.state.errorMessage {
@@ -143,7 +158,12 @@ private struct AuthStrings {
     var signedOut: String { language == .english ? "Signed out" : "未登录" }
     var gamertag: String { language == .english ? "Gamertag" : "玩家名称" }
     var deviceCode: String { language == .english ? "Device code" : "设备码" }
-    var verificationURL: String { language == .english ? "Open" : "打开" }
+    var deviceCodeInstructions: String {
+        language == .english
+            ? "Open the Microsoft verification page, then enter the device code below."
+            : "打开 Microsoft 验证页面，然后输入下方设备码完成登录。"
+    }
+    var openVerificationPage: String { language == .english ? "Open Verification Page" : "打开验证页面" }
     var startSignIn: String { language == .english ? "Start Sign-In" : "开始登录" }
     var completeSignIn: String { language == .english ? "Complete Sign-In" : "完成登录" }
     var signOut: String { language == .english ? "Sign Out" : "退出登录" }

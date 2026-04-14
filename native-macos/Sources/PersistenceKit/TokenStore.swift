@@ -5,6 +5,7 @@ public struct StoredTokens: Codable, Equatable, Sendable {
     public let authToken: String?
     public let refreshToken: String?
     public let webToken: String?
+    public let userHash: String?
     public let xHomeStreamingToken: String?
     public let xCloudStreamingToken: String?
 
@@ -12,12 +13,14 @@ public struct StoredTokens: Codable, Equatable, Sendable {
         authToken: String? = nil,
         refreshToken: String? = nil,
         webToken: String? = nil,
+        userHash: String? = nil,
         xHomeStreamingToken: String? = nil,
         xCloudStreamingToken: String? = nil
     ) {
         self.authToken = authToken
         self.refreshToken = refreshToken
         self.webToken = webToken
+        self.userHash = userHash
         self.xHomeStreamingToken = xHomeStreamingToken
         self.xCloudStreamingToken = xCloudStreamingToken
     }

@@ -51,3 +51,42 @@ func streamingTokenResponseDecodesLegacyGsTokenField() throws {
     let decoded = try JSONDecoder().decode(StreamingTokenResponse.self, from: data)
     #expect(decoded.token == "stream-token")
 }
+
+@Test
+func profileEndpointMatchesLegacyXboxHeaders() throws {
+    let endpoint = AuthEndpoints.userProfile(userToken: "web-token", userHash: "12345")
+    let request = try RequestBuilder.make(
+        baseURL: URL(string: "https://profile.xboxlive.com")!,
+        endpoint: endpoint
+    )
+
+    #expect(request.url?.absoluteString == "https://profile.xboxlive.com/users/me/profile/settings?settings=GameDisplayName,GameDisplayPicRaw,Gamerscore,Gamertag")
+    #expect(request.httpMethod == "GET")
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "XBL3.0 x=12345;web-token")
+    #expect(request.value(forHTTPHeaderField: "x-xbl-contract-version") == "2")
+}
+
+@Test
+func profileResponseDecodesLegacySettingsPayload() throws {
+    let data = Data(
+        """
+        {
+          "profileUsers": [
+            {
+              "settings": [
+                { "id": "Gamertag", "value": "Kooyas" },
+                { "id": "GameDisplayPicRaw", "value": "https://example.com/pic.png" },
+                { "id": "Gamerscore", "value": "12345" }
+              ]
+            }
+          ]
+        }
+        """.utf8
+    )
+
+    let decoded = try JSONDecoder().decode(ProfileSettingsResponse.self, from: data)
+    let profile = decoded.asUserProfile()
+    #expect(profile.gamertag == "Kooyas")
+    #expect(profile.gamerpicURL?.absoluteString == "https://example.com/pic.png")
+    #expect(profile.gamerscore == "12345")
+}

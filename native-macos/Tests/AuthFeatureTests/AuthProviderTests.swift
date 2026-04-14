@@ -1,5 +1,6 @@
 import Foundation
 import NetworkingKit
+import PersistenceKit
 import Testing
 @testable import AuthFeature
 
@@ -93,6 +94,22 @@ func liveProviderPollsUntilDeviceCodeCompletes() async throws {
             statusCode: 200,
             body: """
             {
+              "profileUsers": [
+                {
+                  "settings": [
+                    { "id": "Gamertag", "value": "Kooyas" },
+                    { "id": "GameDisplayPicRaw", "value": "https://example.com/gamerpic.png" },
+                    { "id": "Gamerscore", "value": "67890" }
+                  ]
+                }
+              ]
+            }
+            """
+        ),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
               "gsToken": "xhome-stream-token"
             }
             """
@@ -123,10 +140,48 @@ func liveProviderPollsUntilDeviceCodeCompletes() async throws {
     let result = try await provider.completeDeviceCode(challenge: challenge)
 
     #expect(challenge.deviceCode == "device-code-123")
+    #expect(result.authState.userProfile?.gamertag == "Kooyas")
     #expect(result.tokens.refreshToken == "refresh-token")
+    #expect(result.tokens.userHash == "12345")
     #expect(result.tokens.xHomeStreamingToken == "xhome-stream-token")
     #expect(result.tokens.xCloudStreamingToken == "xcloud-stream-token")
-    #expect(await session.consumedResponses == 9)
+    #expect(await session.consumedResponses == 10)
+}
+
+@Test
+func liveProviderRestoresSessionWithStoredProfileTokens() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "profileUsers": [
+                {
+                  "settings": [
+                    { "id": "Gamertag", "value": "Restored User" },
+                    { "id": "Gamerscore", "value": "321" }
+                  ]
+                }
+              ]
+            }
+            """
+        )
+    ])
+
+    let provider = LiveXboxAuthProvider(
+        httpClient: HTTPClient(session: session)
+    )
+    let state = try await provider.restoreSession(
+        from: StoredTokens(
+            authToken: "access-token",
+            webToken: "web-token",
+            userHash: "12345"
+        )
+    )
+
+    #expect(state.isSignedIn == true)
+    #expect(state.userProfile?.gamertag == "Restored User")
+    #expect(await session.consumedResponses == 1)
 }
 
 private actor ResponseCounter {

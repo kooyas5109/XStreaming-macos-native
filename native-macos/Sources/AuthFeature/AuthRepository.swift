@@ -17,23 +17,7 @@ public struct DefaultAuthRepository: AuthRepository {
     }
 
     public func restoreSession(from tokens: StoredTokens?) async throws -> AuthState {
-        guard let tokens, let authToken = tokens.authToken, authToken.isEmpty == false else {
-            return .signedOut
-        }
-
-        let profile = UserProfile(
-            gamertag: "Signed In User",
-            gamerpicURL: nil,
-            gamerscore: "",
-            appLevel: 1
-        )
-
-        return AuthState(
-            isSignedIn: true,
-            isAuthenticating: false,
-            userProfile: profile,
-            statusMessage: "Restored session from stored tokens."
-        )
+        try await provider.restoreSession(from: tokens)
     }
 
     public func beginInteractiveSignIn() async throws -> DeviceCodeChallenge {

@@ -9,6 +9,7 @@ func inMemoryTokenStoreRoundTripsTokens() throws {
         authToken: "auth-token",
         refreshToken: "refresh-token",
         webToken: "web-token",
+        userHash: "user-hash",
         xHomeStreamingToken: "xhome-token",
         xCloudStreamingToken: "xcloud-token"
     )

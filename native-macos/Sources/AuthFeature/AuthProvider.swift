@@ -17,12 +17,31 @@ public enum AuthProviderMode: String, Equatable, Sendable {
 }
 
 public protocol XboxAuthProviding: Sendable {
+    func restoreSession(from tokens: StoredTokens?) async throws -> AuthState
     func requestDeviceCode() async throws -> DeviceCodeChallenge
     func completeDeviceCode(challenge: DeviceCodeChallenge) async throws -> AuthSignInResult
 }
 
 public struct PreviewXboxAuthProvider: XboxAuthProviding {
     public init() {}
+
+    public func restoreSession(from tokens: StoredTokens?) async throws -> AuthState {
+        guard let tokens, let authToken = tokens.authToken, authToken.isEmpty == false else {
+            return .signedOut
+        }
+
+        return AuthState(
+            isSignedIn: true,
+            isAuthenticating: false,
+            userProfile: UserProfile(
+                gamertag: "Native Preview User",
+                gamerpicURL: nil,
+                gamerscore: "4200",
+                appLevel: 2
+            ),
+            statusMessage: "Restored preview session from stored tokens."
+        )
+    }
 
     public func requestDeviceCode() async throws -> DeviceCodeChallenge {
         DeviceCodeChallenge(
@@ -52,6 +71,7 @@ public struct PreviewXboxAuthProvider: XboxAuthProviding {
             authToken: "native-auth-token-\(challenge.userCode)",
             refreshToken: "native-refresh-token",
             webToken: "native-web-token",
+            userHash: "preview-user-hash",
             xHomeStreamingToken: "native-xhome-token",
             xCloudStreamingToken: "native-xcloud-token"
         )
@@ -69,19 +89,36 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
     private let deviceCodeBaseURL: URL
     private let xboxUserAuthBaseURL: URL
     private let xstsBaseURL: URL
+    private let profileBaseURL: URL
 
     public init(
         httpClient: HTTPClient = HTTPClient(),
         clientID: String = "1f907974-e22b-4810-a9de-d9647380c97e",
         deviceCodeBaseURL: URL = URL(string: "https://login.microsoftonline.com")!,
         xboxUserAuthBaseURL: URL = URL(string: "https://user.auth.xboxlive.com")!,
-        xstsBaseURL: URL = URL(string: "https://xsts.auth.xboxlive.com")!
+        xstsBaseURL: URL = URL(string: "https://xsts.auth.xboxlive.com")!,
+        profileBaseURL: URL = URL(string: "https://profile.xboxlive.com")!
     ) {
         self.httpClient = httpClient
         self.clientID = clientID
         self.deviceCodeBaseURL = deviceCodeBaseURL
         self.xboxUserAuthBaseURL = xboxUserAuthBaseURL
         self.xstsBaseURL = xstsBaseURL
+        self.profileBaseURL = profileBaseURL
+    }
+
+    public func restoreSession(from tokens: StoredTokens?) async throws -> AuthState {
+        guard let tokens, let authToken = tokens.authToken, authToken.isEmpty == false else {
+            return .signedOut
+        }
+
+        let profile = try await restoreUserProfile(from: tokens)
+        return AuthState(
+            isSignedIn: true,
+            isAuthenticating: false,
+            userProfile: profile,
+            statusMessage: "Restored live session from stored tokens."
+        )
     }
 
     public func requestDeviceCode() async throws -> DeviceCodeChallenge {
@@ -109,10 +146,12 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             userToken: userAuth.token,
             relyingParty: "http://xboxlive.com"
         )
+        let userHash = webToken.displayClaims.xui.first?.uhs ?? ""
         let gssvToken = try await authorizeXSTS(
             userToken: userAuth.token,
             relyingParty: "http://gssv.xboxlive.com/"
         )
+        let profile = try await fetchUserProfile(userToken: webToken.token, userHash: userHash)
         let xHomeToken = try await fetchStreamingToken(
             userToken: gssvToken.token,
             offeringID: "xhome"
@@ -123,9 +162,9 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             isSignedIn: true,
             isAuthenticating: false,
             userProfile: UserProfile(
-                gamertag: "Xbox User",
-                gamerpicURL: nil,
-                gamerscore: "",
+                gamertag: profile.gamertag,
+                gamerpicURL: profile.gamerpicURL,
+                gamerscore: profile.gamerscore,
                 appLevel: xCloudToken == nil ? 1 : 2
             ),
             statusMessage: "Signed in through the live MSAL-first device code flow."
@@ -134,6 +173,7 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             authToken: tokenResponse.accessToken,
             refreshToken: tokenResponse.refreshToken,
             webToken: webToken.token,
+            userHash: userHash,
             xHomeStreamingToken: xHomeToken.token,
             xCloudStreamingToken: xCloudToken?.token
         )
@@ -213,6 +253,25 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
                 return nil
             }
         }
+    }
+
+    private func restoreUserProfile(from tokens: StoredTokens) async throws -> UserProfile? {
+        guard
+            let webToken = tokens.webToken, webToken.isEmpty == false,
+            let userHash = tokens.userHash, userHash.isEmpty == false
+        else {
+            return nil
+        }
+
+        return try await fetchUserProfile(userToken: webToken, userHash: userHash)
+    }
+
+    private func fetchUserProfile(userToken: String, userHash: String) async throws -> UserProfile {
+        let endpoint = AuthEndpoints.userProfile(userToken: userToken, userHash: userHash)
+        let request = try RequestBuilder.make(baseURL: profileBaseURL, endpoint: endpoint)
+        let response = try await httpClient.send(request)
+        let payload = try httpClient.decode(ProfileSettingsResponse.self, from: response)
+        return payload.asUserProfile()
     }
 }
 

@@ -22,7 +22,7 @@ func authServiceRestoresSignedInStateWithStoredTokens() async throws {
 
     let state = try await service.restoreSession()
     #expect(state.isSignedIn == true)
-    #expect(state.userProfile?.gamertag == "Signed In User")
+    #expect(state.userProfile?.gamertag == "Native Preview User")
 }
 
 @Test
@@ -42,6 +42,7 @@ func authServiceCompletesDeviceCodeFlowAndPersistsTokens() async throws {
     #expect(persisted?.authToken?.isEmpty == false)
     #expect(persisted?.refreshToken == "native-refresh-token")
     #expect(persisted?.webToken == "native-web-token")
+    #expect(persisted?.userHash == "preview-user-hash")
     #expect(persisted?.xHomeStreamingToken == "native-xhome-token")
     #expect(persisted?.xCloudStreamingToken == "native-xcloud-token")
 }

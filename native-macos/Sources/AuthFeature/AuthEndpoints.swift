@@ -1,5 +1,6 @@
 import Foundation
 import NetworkingKit
+import SharedDomain
 
 enum AuthEndpoints {
     static func deviceCode(clientID: String, scope: String) -> BasicEndpoint {
@@ -63,6 +64,27 @@ enum AuthEndpoints {
                 "x-gssv-client": "XboxComBrowser"
             ],
             body: body
+        )
+    }
+
+    static func userProfile(userToken: String, userHash: String) -> BasicEndpoint {
+        BasicEndpoint(
+            path: "/users/me/profile/settings",
+            method: .get,
+            queryItems: [
+                URLQueryItem(
+                    name: "settings",
+                    value: "GameDisplayName,GameDisplayPicRaw,Gamerscore,Gamertag"
+                )
+            ],
+            headers: [
+                "Authorization": "XBL3.0 x=\(userHash);\(userToken)",
+                "Accept-Language": "en-US",
+                "x-xbl-contract-version": "2",
+                "x-xbl-client-name": "XboxApp",
+                "x-xbl-client-type": "UWA",
+                "x-xbl-client-version": "39.39.22001.0"
+            ]
         )
     }
 
@@ -132,6 +154,36 @@ struct StreamingTokenResponse: Decodable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case token = "gsToken"
+    }
+}
+
+struct ProfileSettingsResponse: Decodable, Equatable, Sendable {
+    struct ProfileUser: Decodable, Equatable, Sendable {
+        struct Setting: Decodable, Equatable, Sendable {
+            let id: String
+            let value: String
+        }
+
+        let settings: [Setting]
+    }
+
+    let profileUsers: [ProfileUser]
+
+    func asUserProfile() -> UserProfile {
+        let settings = profileUsers.first?.settings ?? []
+        let gamertag = settings.first(where: { $0.id == "Gamertag" })?.value
+            ?? settings.first(where: { $0.id == "GameDisplayName" })?.value
+            ?? ""
+        let gamerpicValue = settings.filter { $0.id == "GameDisplayPicRaw" }.first?.value
+        let gamerpicURL = gamerpicValue.flatMap(URL.init(string:))
+        let gamerscore = settings.first(where: { $0.id == "Gamerscore" })?.value ?? ""
+
+        return UserProfile(
+            gamertag: gamertag,
+            gamerpicURL: gamerpicURL,
+            gamerscore: gamerscore,
+            appLevel: 1
+        )
     }
 }
 

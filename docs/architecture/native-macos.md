@@ -304,6 +304,7 @@ Planned implementations:
   - native WebRTC, audio, input, rumble, and video rendering
 
 This seam allows the product to ship a native shell without blocking on immediate full WebRTC rewrite.
+The live preview app should switch to `NativeStreamingEngine` as soon as the shell can render a native video surface without depending on the compatibility bridge.
 
 ## Error Handling
 

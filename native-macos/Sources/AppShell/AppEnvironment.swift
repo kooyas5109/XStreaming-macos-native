@@ -13,7 +13,7 @@ public struct AppEnvironment: Sendable {
     public let catalogService: CatalogService
     public let settingsStore: SettingsStoreProtocol
     public let streamingService: StreamingService
-    public let streamingEngine: WebViewStreamingEngine
+    public let streamingEngine: any StreamingEngineProtocol
 
     public init(
         router: AppRouter,
@@ -22,7 +22,7 @@ public struct AppEnvironment: Sendable {
         catalogService: CatalogService,
         settingsStore: SettingsStoreProtocol,
         streamingService: StreamingService,
-        streamingEngine: WebViewStreamingEngine
+        streamingEngine: any StreamingEngineProtocol
     ) {
         self.router = router
         self.logger = logger
@@ -35,7 +35,7 @@ public struct AppEnvironment: Sendable {
 
     @MainActor
     public static func makePreview() -> AppEnvironment {
-        let streamingEngine = WebViewStreamingEngine.preview()
+        let streamingEngine = NativeStreamingEngine.preview()
         let repository = PreviewStreamingRepository()
         return AppEnvironment(
             router: AppRouter(),

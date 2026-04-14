@@ -6,19 +6,22 @@ public struct StreamingEngineCapabilities: Equatable, Sendable {
     public let supportsPointerInput: Bool
     public let supportsControllerInput: Bool
     public let supportsNativeOverlay: Bool
+    public let supportsRumble: Bool
 
     public init(
         supportsVideo: Bool,
         supportsAudio: Bool,
         supportsPointerInput: Bool,
         supportsControllerInput: Bool,
-        supportsNativeOverlay: Bool
+        supportsNativeOverlay: Bool,
+        supportsRumble: Bool
     ) {
         self.supportsVideo = supportsVideo
         self.supportsAudio = supportsAudio
         self.supportsPointerInput = supportsPointerInput
         self.supportsControllerInput = supportsControllerInput
         self.supportsNativeOverlay = supportsNativeOverlay
+        self.supportsRumble = supportsRumble
     }
 }
 
@@ -35,7 +38,8 @@ public struct PreviewStreamingEngine: StreamingEngineProtocol {
         supportsAudio: true,
         supportsPointerInput: false,
         supportsControllerInput: true,
-        supportsNativeOverlay: false
+        supportsNativeOverlay: false,
+        supportsRumble: false
     )
 
     public init() {}

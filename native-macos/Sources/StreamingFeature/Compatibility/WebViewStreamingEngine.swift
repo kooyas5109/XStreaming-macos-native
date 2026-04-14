@@ -26,7 +26,8 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
         supportsAudio: true,
         supportsPointerInput: true,
         supportsControllerInput: true,
-        supportsNativeOverlay: true
+        supportsNativeOverlay: true,
+        supportsRumble: false
     )
 
     public private(set) var currentSession: StreamingSession?

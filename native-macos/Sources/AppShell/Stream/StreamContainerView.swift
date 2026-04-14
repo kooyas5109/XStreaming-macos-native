@@ -6,7 +6,7 @@ public struct StreamContainerView: View {
     public let route: AppRouter.Route
 
     private let streamingService: StreamingService
-    private let engine: WebViewStreamingEngine
+    private let engine: any StreamingEngineProtocol
     @State private var state: StreamingStateMachine.State = .idle
     @State private var isStarting = false
     @State private var errorMessage: String?
@@ -14,7 +14,7 @@ public struct StreamContainerView: View {
     public init(
         route: AppRouter.Route,
         streamingService: StreamingService,
-        engine: WebViewStreamingEngine
+        engine: any StreamingEngineProtocol
     ) {
         self.route = route
         self.streamingService = streamingService
@@ -40,7 +40,7 @@ public struct StreamContainerView: View {
                 .disabled(isStarting)
             }
 
-            StreamingWebView(engine: engine)
+            streamingSurface
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(.black.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -82,6 +82,21 @@ public struct StreamContainerView: View {
             return "Stopped"
         case .failed:
             return "Failed"
+        }
+    }
+
+    @ViewBuilder
+    private var streamingSurface: some View {
+        if let nativeEngine = engine as? NativeStreamingEngine {
+            NativeVideoSurfaceView(renderer: nativeEngine.videoRenderer)
+        } else if let webViewEngine = engine as? WebViewStreamingEngine {
+            StreamingWebView(engine: webViewEngine)
+        } else {
+            ContentUnavailableView(
+                "No Streaming Surface",
+                systemImage: "display.slash",
+                description: Text("The selected streaming engine does not expose a render surface yet.")
+            )
         }
     }
 

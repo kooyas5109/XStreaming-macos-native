@@ -12,6 +12,10 @@ let package = Package(
             targets: ["SharedDomain"]
         ),
         .library(
+            name: "PersistenceKit",
+            targets: ["PersistenceKit"]
+        ),
+        .library(
             name: "AppShell",
             targets: ["AppShell"]
         ),
@@ -30,12 +34,17 @@ let package = Package(
             path: "Sources/SharedDomain"
         ),
         .target(
+            name: "PersistenceKit",
+            dependencies: ["SharedDomain"],
+            path: "Sources/PersistenceKit"
+        ),
+        .target(
             name: "SupportKit",
             path: "Sources/SupportKit"
         ),
         .target(
             name: "AppShell",
-            dependencies: ["SharedDomain", "SupportKit"],
+            dependencies: ["SharedDomain", "SupportKit", "PersistenceKit"],
             path: "Sources/AppShell"
         ),
         .executableTarget(
@@ -47,6 +56,11 @@ let package = Package(
             name: "SharedDomainTests",
             dependencies: ["SharedDomain"],
             path: "Tests/SharedDomainTests"
+        ),
+        .testTarget(
+            name: "PersistenceKitTests",
+            dependencies: ["PersistenceKit", "SharedDomain"],
+            path: "Tests/PersistenceKitTests"
         ),
         .testTarget(
             name: "AppShellTests",

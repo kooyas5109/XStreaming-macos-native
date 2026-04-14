@@ -133,9 +133,13 @@ public enum SettingsMapper {
         from settings: AppSettings,
         resolution: Int,
         videoFormat: String,
+        codec: String,
         xhomeBitrate: Int,
         xcloudBitrate: Int,
-        audioBitrate: Int
+        audioBitrate: Int,
+        vibration: Bool,
+        enableNativeMouseKeyboard: Bool,
+        mouseSensitive: Double
     ) -> AppSettings {
         AppSettings(
             locale: settings.locale,
@@ -154,10 +158,10 @@ public enum SettingsMapper {
             audioRumbleThreshold: settings.audioRumbleThreshold,
             preferredGameLanguage: settings.preferredGameLanguage,
             forceRegionIP: settings.forceRegionIP,
-            codec: settings.codec,
+            codec: codec,
             pollingRate: settings.pollingRate,
             coop: settings.coop,
-            vibration: settings.vibration,
+            vibration: vibration,
             vibrationMode: settings.vibrationMode,
             gamepadKernel: settings.gamepadKernel,
             gamepadMix: settings.gamepadMix,
@@ -169,8 +173,8 @@ public enum SettingsMapper {
             videoFormat: videoFormat,
             virtualGamepadOpacity: settings.virtualGamepadOpacity,
             ipv6: settings.ipv6,
-            enableNativeMouseKeyboard: settings.enableNativeMouseKeyboard,
-            mouseSensitive: settings.mouseSensitive,
+            enableNativeMouseKeyboard: enableNativeMouseKeyboard,
+            mouseSensitive: mouseSensitive,
             performanceStyle: settings.performanceStyle,
             turnServer: settings.turnServer,
             backgroundKeepalive: settings.backgroundKeepalive,

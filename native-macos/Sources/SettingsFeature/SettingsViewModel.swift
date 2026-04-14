@@ -10,9 +10,13 @@ public final class SettingsViewModel: ObservableObject {
     @Published public var performanceStyleEnabled: Bool = false
     @Published public var resolution: Int = 720
     @Published public var videoFormat: String = ""
+    @Published public var codec: String = ""
     @Published public var hostBitrate: Double = 20
     @Published public var cloudBitrate: Double = 20
     @Published public var audioBitrate: Double = 20
+    @Published public var vibrationEnabled: Bool = true
+    @Published public var nativeMouseKeyboardEnabled: Bool = false
+    @Published public var mouseSensitivity: Double = 0.5
     @Published public var serverURL: String = ""
     @Published public var serverUsername: String = ""
     @Published public var serverCredential: String = ""
@@ -35,9 +39,13 @@ public final class SettingsViewModel: ObservableObject {
         performanceStyleEnabled = loaded.performanceStyle
         resolution = loaded.resolution
         videoFormat = loaded.videoFormat
+        codec = loaded.codec
         hostBitrate = Double(loaded.xhomeBitrate)
         cloudBitrate = Double(loaded.xcloudBitrate)
         audioBitrate = Double(loaded.audioBitrate)
+        vibrationEnabled = loaded.vibration
+        nativeMouseKeyboardEnabled = loaded.enableNativeMouseKeyboard
+        mouseSensitivity = loaded.mouseSensitive
         serverURL = loaded.turnServer.url
         serverUsername = loaded.turnServer.username
         serverCredential = loaded.turnServer.credential
@@ -66,9 +74,13 @@ public final class SettingsViewModel: ObservableObject {
             from: settingsWithPresentation,
             resolution: resolution,
             videoFormat: videoFormat,
+            codec: codec,
             xhomeBitrate: Int(hostBitrate.rounded()),
             xcloudBitrate: Int(cloudBitrate.rounded()),
-            audioBitrate: Int(audioBitrate.rounded())
+            audioBitrate: Int(audioBitrate.rounded()),
+            vibration: vibrationEnabled,
+            enableNativeMouseKeyboard: nativeMouseKeyboardEnabled,
+            mouseSensitive: mouseSensitivity
         )
 
         try settingsStore.save(updated)
@@ -86,9 +98,13 @@ public final class SettingsViewModel: ObservableObject {
         performanceStyleEnabled = resetSettings.performanceStyle
         resolution = resetSettings.resolution
         videoFormat = resetSettings.videoFormat
+        codec = resetSettings.codec
         hostBitrate = Double(resetSettings.xhomeBitrate)
         cloudBitrate = Double(resetSettings.xcloudBitrate)
         audioBitrate = Double(resetSettings.audioBitrate)
+        vibrationEnabled = resetSettings.vibration
+        nativeMouseKeyboardEnabled = resetSettings.enableNativeMouseKeyboard
+        mouseSensitivity = resetSettings.mouseSensitive
         serverURL = resetSettings.turnServer.url
         serverUsername = resetSettings.turnServer.username
         serverCredential = resetSettings.turnServer.credential

@@ -305,12 +305,28 @@ public struct StreamContainerView: View {
                     tint: microphoneOpen ? .green : .secondary
                 )
                 ShellStatusBadge(
+                    label: "\(strings.codecBadgeTitle): \(strings.localizedCodec(settings.codec))",
+                    tint: .purple
+                )
+                ShellStatusBadge(
+                    label: "\(strings.nativeMouseKeyboardBadgeTitle): \(settings.enableNativeMouseKeyboard ? strings.enabled : strings.disabled)",
+                    tint: settings.enableNativeMouseKeyboard ? .blue : .secondary
+                )
+                ShellStatusBadge(
+                    label: "\(strings.vibrationBadgeTitle): \(settings.vibration ? strings.enabled : strings.disabled)",
+                    tint: settings.vibration ? .green : .secondary
+                )
+                ShellStatusBadge(
                     label: showDisplayPanel ? strings.displaySettingsAction : strings.displayPanelTitle,
                     tint: .blue
                 )
                 ShellStatusBadge(
                     label: showAudioPanel ? strings.audioSettingsAction : strings.audioPanelTitle,
                     tint: .orange
+                )
+                ShellStatusBadge(
+                    label: "\(strings.bitrateBadgeTitle): \(Int(settings.xcloudBitrate))/\(Int(settings.xhomeBitrate))",
+                    tint: .secondary
                 )
                 Text(strings.disconnectHint)
                     .font(.caption)

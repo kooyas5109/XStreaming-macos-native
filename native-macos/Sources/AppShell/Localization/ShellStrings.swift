@@ -323,6 +323,10 @@ public struct ShellStrings {
     public var disconnectHint: String {
         language == .english ? "Disconnect returns to the previous catalog view." : "断开连接后会返回上一级目录页面。"
     }
+    public var codecBadgeTitle: String { language == .english ? "Codec" : "编码" }
+    public var nativeMouseKeyboardBadgeTitle: String { language == .english ? "Mouse & Keyboard" : "键鼠" }
+    public var vibrationBadgeTitle: String { language == .english ? "Vibration" : "震动" }
+    public var bitrateBadgeTitle: String { language == .english ? "Bitrate Plan" : "码率方案" }
 
     public func streamStateLabel(_ state: StreamingStateMachine.State) -> String {
         switch state {
@@ -410,5 +414,18 @@ public struct ShellStrings {
             return chineseLanguage
         }
         return englishLanguage
+    }
+
+    public func localizedCodec(_ codec: String) -> String {
+        switch codec {
+        case "video/H264-4d":
+            return language == .english ? "H264 High" : "H264 高"
+        case "video/H264-42e":
+            return language == .english ? "H264 Medium" : "H264 中"
+        case "video/H264-420":
+            return language == .english ? "H264 Low" : "H264 低"
+        default:
+            return language == .english ? "Auto" : "自动"
+        }
     }
 }

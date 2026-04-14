@@ -108,6 +108,35 @@ public struct SettingsView: View {
                 }
 
                 SettingsFieldRow(
+                    title: strings.inputTitle,
+                    prompt: strings.inputPrompt
+                ) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Picker(strings.codecTitle, selection: $viewModel.codec) {
+                            Text(strings.codecAuto).tag("")
+                            Text("H264 High").tag("video/H264-4d")
+                            Text("H264 Medium").tag("video/H264-42e")
+                            Text("H264 Low").tag("video/H264-420")
+                        }
+                        .pickerStyle(.segmented)
+
+                        Toggle(strings.nativeMouseKeyboardTitle, isOn: $viewModel.nativeMouseKeyboardEnabled)
+                            .toggleStyle(.switch)
+
+                        Toggle(strings.vibrationTitle, isOn: $viewModel.vibrationEnabled)
+                            .toggleStyle(.switch)
+
+                        SettingsSliderRow(
+                            title: strings.mouseSensitivityTitle,
+                            value: $viewModel.mouseSensitivity,
+                            range: 0.1...5,
+                            step: 0.1,
+                            suffix: "x"
+                        )
+                    }
+                }
+
+                SettingsFieldRow(
                     title: strings.serverURLTitle,
                     prompt: strings.serverURLPrompt
                 ) {
@@ -253,6 +282,36 @@ private struct SettingsStrings {
 
     var audioBitrateTitle: String {
         language == .english ? "Audio Bitrate" : "音频码率"
+    }
+
+    var inputTitle: String {
+        language == .english ? "Input & Playback" : "输入与播放"
+    }
+
+    var inputPrompt: String {
+        language == .english
+        ? "Carry over codec, mouse, and rumble controls from the original app."
+        : "承接原项目里的 codec、键鼠和震动相关控制。"
+    }
+
+    var codecTitle: String {
+        language == .english ? "Codec" : "编码格式"
+    }
+
+    var codecAuto: String {
+        language == .english ? "Auto" : "自动"
+    }
+
+    var nativeMouseKeyboardTitle: String {
+        language == .english ? "Enable native mouse & keyboard" : "启用原生键鼠"
+    }
+
+    var vibrationTitle: String {
+        language == .english ? "Enable vibration" : "启用震动"
+    }
+
+    var mouseSensitivityTitle: String {
+        language == .english ? "Mouse sensitivity" : "鼠标灵敏度"
     }
 
     var serverURLTitle: String {

@@ -3,19 +3,23 @@ import SwiftUI
 public struct RootView: View {
     private let environment: AppEnvironment
     @ObservedObject private var router: AppRouter
+    @StateObject private var localization: ShellLocalizationStore
 
     public init(environment: AppEnvironment) {
         self.environment = environment
         _router = ObservedObject(wrappedValue: environment.router)
+        _localization = StateObject(wrappedValue: ShellLocalizationStore(settingsStore: environment.settingsStore))
     }
 
     public var body: some View {
+        let strings = ShellStrings(language: localization.language)
+
         NavigationSplitView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("XStreaming")
                         .font(.title2.weight(.bold))
-                    Text("Native macOS preview")
+                    Text(strings.appSubtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -23,17 +27,17 @@ public struct RootView: View {
                 .padding(.top, 12)
 
                 List(selection: selectedRouteBinding) {
-                    Label("Home", systemImage: "desktopcomputer")
+                    Label(strings.homeTab, systemImage: "desktopcomputer")
                         .tag(AppRouter.Route.home)
-                    Label("Cloud", systemImage: "icloud")
+                    Label(strings.cloudTab, systemImage: "icloud")
                         .tag(AppRouter.Route.cloud)
-                    Label("Settings", systemImage: "gearshape")
+                    Label(strings.settingsTab, systemImage: "gearshape")
                         .tag(AppRouter.Route.settings)
                 }
                 .listStyle(.sidebar)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Preview Stack")
+                    Text(strings.previewStackTitle)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(engineStatusLine)
@@ -55,53 +59,25 @@ public struct RootView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 2) {
-                    Text(currentTitle)
+                    Text(strings.rootTitle(for: router.currentRoute))
                         .font(.headline)
-                    Text(currentSubtitle)
+                    Text(strings.rootSubtitle(for: router.currentRoute))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .task {
+            localization.load()
             environment.logger.info("RootView loaded with route: \(String(describing: router.currentRoute))")
         }
     }
 
-    private var currentTitle: String {
-        switch router.currentRoute {
-        case .home:
-            return "Console Library"
-        case .cloud:
-            return "Cloud Catalog"
-        case .settings:
-            return "Settings"
-        case .streamConsole:
-            return "Console Stream"
-        case .streamCloud:
-            return "Cloud Stream"
-        }
-    }
-
-    private var currentSubtitle: String {
-        switch router.currentRoute {
-        case .home:
-            return "Browse your local Xbox devices"
-        case .cloud:
-            return "Pick a title and jump into preview streaming"
-        case .settings:
-            return "Adjust playback, TURN, and demo preferences"
-        case .streamConsole(let id):
-            return "Preview session for console \(id)"
-        case .streamCloud(let id):
-            return "Preview session for title \(id)"
-        }
-    }
-
     private var engineStatusLine: String {
-        environment.streamingEngine.capabilities.supportsRumble
-        ? "Native engine active"
-        : "Compatibility engine active"
+        let strings = ShellStrings(language: localization.language)
+        return environment.streamingEngine.capabilities.supportsRumble
+        ? strings.nativeEngineActive
+        : strings.compatibilityEngineActive
     }
 
     private var selectedRouteBinding: Binding<AppRouter.Route?> {
@@ -128,27 +104,33 @@ public struct RootView: View {
         switch router.currentRoute {
         case .home:
             HomeView(
-                viewModel: HomeViewModel(
-                    service: environment.consoleService,
-                    router: router
-                )
+                viewModel: HomeViewModel(service: environment.consoleService, router: router),
+                language: localization.language
             )
 
         case .cloud:
             CloudView(
                 service: environment.catalogService,
-                router: router
+                router: router,
+                language: localization.language
             )
 
         case .settings:
-            SettingsContainerView(settingsStore: environment.settingsStore)
+            SettingsContainerView(
+                settingsStore: environment.settingsStore,
+                language: localization.language,
+                onSettingsChanged: { settings in
+                    localization.apply(settings: settings)
+                }
+            )
 
         case .streamConsole(let id):
             StreamContainerView(
                 route: .streamConsole(id: id),
                 streamingService: environment.streamingService,
                 engine: environment.streamingEngine,
-                router: router
+                router: router,
+                language: localization.language
             )
 
         case .streamCloud(let id):
@@ -156,7 +138,8 @@ public struct RootView: View {
                 route: .streamCloud(id: id),
                 streamingService: environment.streamingService,
                 engine: environment.streamingEngine,
-                router: router
+                router: router,
+                language: localization.language
             )
         }
     }

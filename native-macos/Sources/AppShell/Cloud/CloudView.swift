@@ -5,36 +5,40 @@ import SwiftUI
 public struct CloudView: View {
     @StateObject private var viewModel: CatalogViewModel
     private let router: AppRouter
+    private let language: AppLanguage
 
-    public init(service: CatalogService, router: AppRouter) {
+    public init(service: CatalogService, router: AppRouter, language: AppLanguage) {
         _viewModel = StateObject(wrappedValue: CatalogViewModel(service: service))
         self.router = router
+        self.language = language
     }
 
     public var body: some View {
+        let strings = ShellStrings(language: language)
+
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 ShellSectionHeader(
-                    eyebrow: "Cloud",
-                    title: "Cloud Gaming Catalog",
-                    subtitle: "Browse a compact Game Pass style catalog and jump into the native preview stream."
+                    eyebrow: strings.cloudEyebrow,
+                    title: strings.cloudTitle,
+                    subtitle: strings.cloudSubtitle
                 )
 
                 HStack(spacing: 14) {
                     ShellMetricCard(
-                        title: "Visible Titles",
+                        title: strings.visibleTitles,
                         value: "\(viewModel.displayedTitles.count)",
                         icon: "square.stack.3d.up.fill",
                         tint: .blue
                     )
                     ShellMetricCard(
-                        title: "Recently Played",
+                        title: strings.recentlyPlayed,
                         value: "\(viewModel.recentTitles.count)",
                         icon: "clock.arrow.circlepath",
                         tint: .orange
                     )
                     ShellMetricCard(
-                        title: "Keyboard Support",
+                        title: strings.keyboardSupport,
                         value: "\(keyboardReadyCount)",
                         icon: "keyboard",
                         tint: .green
@@ -42,13 +46,13 @@ public struct CloudView: View {
                 }
 
                 ShellPanel(
-                    title: "Browse Titles",
-                    subtitle: "Switch between recently played, newest arrivals, and the full preview catalog."
+                    title: strings.browseTitles,
+                    subtitle: strings.browseTitlesSubtitle
                 ) {
-                    Picker("Catalog", selection: $viewModel.currentTab) {
-                        Text("Recently").tag(CatalogTab.recently)
-                        Text("Newest").tag(CatalogTab.newest)
-                        Text("All").tag(CatalogTab.all)
+                    Picker(strings.catalogPickerLabel, selection: $viewModel.currentTab) {
+                        Text(strings.catalogRecently).tag(CatalogTab.recently)
+                        Text(strings.catalogNewest).tag(CatalogTab.newest)
+                        Text(strings.catalogAll).tag(CatalogTab.all)
                     }
                     .pickerStyle(.segmented)
 
@@ -57,14 +61,14 @@ public struct CloudView: View {
                             Button {
                                 router.route(to: .streamCloud(id: title.productID))
                             } label: {
-                                CloudTitleRow(title: title)
+                                CloudTitleRow(title: title, strings: strings)
                             }
                             .buttonStyle(.plain)
                         }
                     }
                     .overlay {
                         if viewModel.isLoading {
-                            ProgressView("Loading Catalog...")
+                            ProgressView(strings.loadingCatalog)
                         }
                     }
                 }
@@ -88,6 +92,7 @@ public struct CloudView: View {
 
 private struct CloudTitleRow: View {
     let title: CatalogTitle
+    let strings: ShellStrings
 
     var body: some View {
         HStack(spacing: 14) {
@@ -116,7 +121,7 @@ private struct CloudTitleRow: View {
 
                 HStack(spacing: 8) {
                     ForEach(title.supportedInputTypes, id: \.self) { input in
-                        ShellStatusBadge(label: input.rawValue, tint: input == .mouseAndKeyboard ? .green : .blue)
+                        ShellStatusBadge(label: strings.localizedInputType(input), tint: input == .mouseAndKeyboard ? .green : .blue)
                     }
                 }
             }

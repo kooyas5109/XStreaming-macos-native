@@ -18,7 +18,23 @@ func savingTurnServerUpdatesSettingsStore() async throws {
 
     let persisted = try store.load()
     #expect(persisted.turnServer.url == "turn:relay.example.com")
+    #expect(persisted.locale == "en")
     #expect(model.toastMessage == "Saved")
+}
+
+@MainActor
+@Test
+func savingLanguageSelectionPersistsLocale() throws {
+    let store = InMemorySettingsStore()
+    let model = SettingsViewModel(settingsStore: store)
+    try model.load()
+
+    model.selectedLanguage = .simplifiedChinese
+    try model.save()
+
+    let persisted = try store.load()
+    #expect(persisted.locale == AppLanguage.simplifiedChinese.localeCode)
+    #expect(model.toastMessage == "已保存")
 }
 
 @MainActor
@@ -49,6 +65,7 @@ func resetRestoresDefaultSettings() throws {
     try model.reset()
 
     #expect(model.settings == .defaults)
+    #expect(model.selectedLanguage == .english)
     #expect(model.serverURL == "")
     #expect(model.toastMessage == "Reset")
 }

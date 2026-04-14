@@ -1,3 +1,4 @@
+import SharedDomain
 import SwiftUI
 import Testing
 @testable import AppShell
@@ -23,7 +24,8 @@ func appLaunchSmokeSupportsPreviewNavigationAndStreamSurface() {
         route: .streamCloud(id: "title-1"),
         streamingService: environment.streamingService,
         engine: environment.streamingEngine,
-        router: environment.router
+        router: environment.router,
+        language: .english
     )
 
     #expect(environment.router.currentRoute == .streamCloud(id: "title-1"))

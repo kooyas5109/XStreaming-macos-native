@@ -3,36 +3,40 @@ import SharedDomain
 
 public struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
+    private let language: AppLanguage
 
-    public init(viewModel: HomeViewModel) {
+    public init(viewModel: HomeViewModel, language: AppLanguage) {
         _viewModel = StateObject(wrappedValue: viewModel)
+        self.language = language
     }
 
     public var body: some View {
+        let strings = ShellStrings(language: language)
+
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 ShellSectionHeader(
-                    eyebrow: "Home",
-                    title: "Console Library",
-                    subtitle: "Launch into your local Xbox devices and preview the native macOS streaming flow."
+                    eyebrow: strings.homeEyebrow,
+                    title: strings.homeTitle,
+                    subtitle: strings.homeSubtitle
                 )
 
                 HStack(spacing: 14) {
                     ShellMetricCard(
-                        title: "Available Consoles",
+                        title: strings.availableConsoles,
                         value: "\(viewModel.consoles.count)",
                         icon: "display.2",
                         tint: .blue
                     )
                     ShellMetricCard(
-                        title: "Ready To Stream",
+                        title: strings.readyToStream,
                         value: "\(connectedStandbyCount)",
                         icon: "bolt.horizontal.circle",
                         tint: .green
                     )
                     ShellMetricCard(
-                        title: "Preview Engine",
-                        value: "Native",
+                        title: strings.previewEngine,
+                        value: strings.nativeLabel,
                         icon: "sparkles.tv",
                         tint: .cyan
                     )
@@ -44,27 +48,27 @@ public struct HomeView: View {
                 }
 
                 ShellPanel(
-                    title: "Your Consoles",
-                    subtitle: "Choose a device to open the current native stream preview surface."
+                    title: strings.yourConsoles,
+                    subtitle: strings.yourConsolesSubtitle
                 ) {
                     LazyVStack(spacing: 12) {
                         ForEach(viewModel.consoles, id: \.id) { console in
                             Button {
                                 viewModel.openConsole(console)
                             } label: {
-                                ConsoleRow(console: console)
+                                ConsoleRow(console: console, strings: strings)
                             }
                             .buttonStyle(.plain)
                         }
                     }
                     .overlay {
                         if viewModel.isLoading {
-                            ProgressView("Loading Consoles...")
+                            ProgressView(strings.loadingConsoles)
                         } else if viewModel.consoles.isEmpty {
                             ContentUnavailableView(
-                                "No Consoles",
+                                strings.noConsoles,
                                 systemImage: "xbox.logo",
-                                description: Text("Connect an Xbox to start a native console stream.")
+                                description: Text(strings.noConsolesDescription)
                             )
                         }
                     }
@@ -84,6 +88,7 @@ public struct HomeView: View {
 
 private struct ConsoleRow: View {
     let console: ConsoleDevice
+    let strings: ShellStrings
 
     var body: some View {
         HStack(spacing: 14) {
@@ -97,8 +102,8 @@ private struct ConsoleRow: View {
                     .font(.headline)
 
                 HStack(spacing: 8) {
-                    ShellStatusBadge(label: console.powerState.rawValue, tint: badgeTint)
-                    Text(console.consoleType.rawValue)
+                    ShellStatusBadge(label: strings.localizedPowerState(console.powerState), tint: badgeTint)
+                    Text(strings.localizedConsoleType(console.consoleType))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

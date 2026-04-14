@@ -8,6 +8,7 @@ public struct StreamContainerView: View {
     private let streamingService: StreamingService
     private let engine: any StreamingEngineProtocol
     private let router: AppRouter
+    private let language: AppLanguage
     @State private var state: StreamingStateMachine.State = .idle
     @State private var isStarting = false
     @State private var isStopping = false
@@ -17,22 +18,26 @@ public struct StreamContainerView: View {
         route: AppRouter.Route,
         streamingService: StreamingService,
         engine: any StreamingEngineProtocol,
-        router: AppRouter
+        router: AppRouter,
+        language: AppLanguage
     ) {
         self.route = route
         self.streamingService = streamingService
         self.engine = engine
         self.router = router
+        self.language = language
     }
 
     public var body: some View {
+        let strings = ShellStrings(language: language)
+
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 HStack(alignment: .top) {
                     ShellSectionHeader(
-                        eyebrow: routeEyebrow,
+                        eyebrow: strings.streamEyebrow(for: route),
                         title: title,
-                        subtitle: "This is the staged native stream shell. It renders a native preview surface and drives typed session state."
+                        subtitle: strings.streamSubtitle
                     )
 
                     Spacer()
@@ -41,7 +46,7 @@ public struct StreamContainerView: View {
                         Button {
                             router.route(to: backRoute)
                         } label: {
-                            Label("Back", systemImage: "chevron.left")
+                            Label(strings.back, systemImage: "chevron.left")
                         }
 
                         ShellStatusBadge(label: stateLabel, tint: stateTint)
@@ -50,28 +55,28 @@ public struct StreamContainerView: View {
 
                 HStack(spacing: 14) {
                     ShellMetricCard(
-                        title: "Engine",
-                        value: engine.capabilities.supportsRumble ? "Native" : "Compatibility",
+                        title: strings.engine,
+                        value: engine.capabilities.supportsRumble ? strings.nativeLabel : strings.compatibilityLabel,
                         icon: "sparkles.tv",
                         tint: .cyan
                     )
                     ShellMetricCard(
-                        title: "Video",
-                        value: engine.capabilities.supportsVideo ? "Enabled" : "Unavailable",
+                        title: strings.video,
+                        value: engine.capabilities.supportsVideo ? strings.enabled : strings.unavailable,
                         icon: "video.fill",
                         tint: .blue
                     )
                     ShellMetricCard(
-                        title: "Rumble",
-                        value: engine.capabilities.supportsRumble ? "Ready" : "Pending",
+                        title: strings.rumble,
+                        value: engine.capabilities.supportsRumble ? strings.ready : strings.pending,
                         icon: "waveform.path.ecg.rectangle",
                         tint: .green
                     )
                 }
 
                 ShellPanel(
-                    title: "Stream Surface",
-                    subtitle: "Run the staged playback flow and observe route, state, and renderer changes in one place."
+                    title: strings.streamSurfaceTitle,
+                    subtitle: strings.streamSurfaceSubtitle
                 ) {
                     HStack(spacing: 12) {
                         Button(startButtonTitle) {
@@ -81,7 +86,7 @@ public struct StreamContainerView: View {
                         }
                         .disabled(isStarting || isStopping)
 
-                        Button("Stop Stream") {
+                        Button(strings.stopStream) {
                             Task {
                                 await stopStream()
                             }
@@ -97,6 +102,15 @@ public struct StreamContainerView: View {
                         .frame(maxWidth: .infinity, minHeight: 420, maxHeight: 520)
                         .background(.black.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+
+                    HStack(spacing: 12) {
+                        ShellStatusBadge(label: sessionLabel, tint: .secondary)
+                        ShellStatusBadge(label: stateLabel, tint: stateTint)
+                        Spacer()
+                        Text(helpText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 if let errorMessage {
@@ -109,35 +123,11 @@ public struct StreamContainerView: View {
     }
 
     private var title: String {
-        switch route {
-        case .streamConsole(let id):
-            return "Console Stream \(id)"
-        case .streamCloud(let id):
-            return "Cloud Stream \(id)"
-        case .home, .cloud, .settings:
-            return "Stream"
-        }
+        ShellStrings(language: language).streamTitle(for: route)
     }
 
     private var stateLabel: String {
-        switch state {
-        case .idle:
-            return "Idle"
-        case .pending:
-            return "Pending"
-        case .queued:
-            return "Queued"
-        case .readyToConnect:
-            return "Ready"
-        case .connecting:
-            return "Connecting"
-        case .streaming:
-            return "Streaming"
-        case .stopped:
-            return "Stopped"
-        case .failed:
-            return "Failed"
-        }
+        ShellStrings(language: language).streamStateLabel(state)
     }
 
     private var stateTint: Color {
@@ -150,17 +140,6 @@ public struct StreamContainerView: View {
             return .green
         case .failed:
             return .red
-        }
-    }
-
-    private var routeEyebrow: String {
-        switch route {
-        case .streamConsole:
-            return "Console Stream"
-        case .streamCloud:
-            return "Cloud Stream"
-        case .home, .cloud, .settings:
-            return "Stream"
         }
     }
 
@@ -180,11 +159,25 @@ public struct StreamContainerView: View {
     }
 
     private var startButtonTitle: String {
-        isStarting ? "Starting..." : "Start Preview Stream"
+        let strings = ShellStrings(language: language)
+        return isStarting ? strings.starting : strings.startPreviewStream
     }
 
     private var capabilitiesLabel: String {
-        engine.capabilities.supportsRumble ? "Native surface" : "Web view surface"
+        let strings = ShellStrings(language: language)
+        return engine.capabilities.supportsRumble ? strings.nativeSurface : strings.webViewSurface
+    }
+
+    private var sessionLabel: String {
+        let strings = ShellStrings(language: language)
+        if let sessionID = state.session?.id {
+            return strings.sessionLabel(sessionID)
+        }
+        return strings.noActiveSession
+    }
+
+    private var helpText: String {
+        ShellStrings(language: language).streamHelpText(for: state)
     }
 
     @ViewBuilder
@@ -194,10 +187,11 @@ public struct StreamContainerView: View {
         } else if let webViewEngine = engine as? WebViewStreamingEngine {
             StreamingWebView(engine: webViewEngine)
         } else {
+            let strings = ShellStrings(language: language)
             ContentUnavailableView(
-                "No Streaming Surface",
+                strings.noStreamingSurface,
                 systemImage: "display.slash",
-                description: Text("The selected streaming engine does not expose a render surface yet.")
+                description: Text(strings.noStreamingSurfaceDescription)
             )
         }
     }

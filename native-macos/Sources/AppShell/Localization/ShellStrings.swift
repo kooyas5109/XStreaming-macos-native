@@ -1,0 +1,311 @@
+import SharedDomain
+import StreamingFeature
+
+public struct ShellStrings {
+    public let language: AppLanguage
+
+    public init(language: AppLanguage) {
+        self.language = language
+    }
+
+    public var appSubtitle: String {
+        switch language {
+        case .english:
+            return "Native macOS preview"
+        case .simplifiedChinese:
+            return "macOS 原生预览版"
+        }
+    }
+
+    public var previewStackTitle: String {
+        switch language {
+        case .english:
+            return "Preview Stack"
+        case .simplifiedChinese:
+            return "预览技术栈"
+        }
+    }
+
+    public var nativeEngineActive: String {
+        switch language {
+        case .english:
+            return "Native engine active"
+        case .simplifiedChinese:
+            return "原生引擎已启用"
+        }
+    }
+
+    public var compatibilityEngineActive: String {
+        switch language {
+        case .english:
+            return "Compatibility engine active"
+        case .simplifiedChinese:
+            return "兼容引擎已启用"
+        }
+    }
+
+    public var homeTab: String {
+        switch language {
+        case .english:
+            return "Home"
+        case .simplifiedChinese:
+            return "主页"
+        }
+    }
+
+    public var cloudTab: String {
+        switch language {
+        case .english:
+            return "Cloud"
+        case .simplifiedChinese:
+            return "云游戏"
+        }
+    }
+
+    public var settingsTab: String {
+        switch language {
+        case .english:
+            return "Settings"
+        case .simplifiedChinese:
+            return "设置"
+        }
+    }
+
+    public func rootTitle(for route: AppRouter.Route) -> String {
+        switch route {
+        case .home:
+            return language == .english ? "Console Library" : "主机库"
+        case .cloud:
+            return language == .english ? "Cloud Catalog" : "云游戏目录"
+        case .settings:
+            return settingsTab
+        case .streamConsole:
+            return language == .english ? "Console Stream" : "主机串流"
+        case .streamCloud:
+            return language == .english ? "Cloud Stream" : "云串流"
+        }
+    }
+
+    public func rootSubtitle(for route: AppRouter.Route) -> String {
+        switch route {
+        case .home:
+            return language == .english ? "Browse your local Xbox devices" : "浏览你的本地 Xbox 设备"
+        case .cloud:
+            return language == .english ? "Pick a title and jump into preview streaming" : "选择游戏并进入预览串流"
+        case .settings:
+            return language == .english ? "Adjust playback, TURN, and demo preferences" : "调整播放、TURN 与演示偏好"
+        case .streamConsole(let id):
+            return language == .english ? "Preview session for console \(id)" : "主机 \(id) 的预览会话"
+        case .streamCloud(let id):
+            return language == .english ? "Preview session for title \(id)" : "游戏 \(id) 的预览会话"
+        }
+    }
+
+    public var homeEyebrow: String { homeTab }
+    public var homeTitle: String { language == .english ? "Console Library" : "主机库" }
+    public var homeSubtitle: String {
+        language == .english
+        ? "Launch into your local Xbox devices and preview the native macOS streaming flow."
+        : "从你的本地 Xbox 设备进入，预览 macOS 原生串流流程。"
+    }
+    public var availableConsoles: String { language == .english ? "Available Consoles" : "可用主机" }
+    public var readyToStream: String { language == .english ? "Ready To Stream" : "可直接串流" }
+    public var previewEngine: String { language == .english ? "Preview Engine" : "预览引擎" }
+    public var nativeLabel: String { language == .english ? "Native" : "原生" }
+    public var compatibilityLabel: String { language == .english ? "Compatibility" : "兼容层" }
+    public var yourConsoles: String { language == .english ? "Your Consoles" : "你的主机" }
+    public var yourConsolesSubtitle: String {
+        language == .english
+        ? "Choose a device to open the current native stream preview surface."
+        : "选择一台设备，打开当前的原生串流预览界面。"
+    }
+    public var loadingConsoles: String { language == .english ? "Loading Consoles..." : "正在加载主机..." }
+    public var noConsoles: String { language == .english ? "No Consoles" : "没有可用主机" }
+    public var noConsolesDescription: String {
+        language == .english
+        ? "Connect an Xbox to start a native console stream."
+        : "连接一台 Xbox 后即可开始原生主机串流。"
+    }
+    public var openAction: String { language == .english ? "Open" : "打开" }
+
+    public var cloudEyebrow: String { cloudTab }
+    public var cloudTitle: String { language == .english ? "Cloud Gaming Catalog" : "云游戏目录" }
+    public var cloudSubtitle: String {
+        language == .english
+        ? "Browse a compact Game Pass style catalog and jump into the native preview stream."
+        : "浏览精简版 Game Pass 风格目录，并进入原生预览串流。"
+    }
+    public var visibleTitles: String { language == .english ? "Visible Titles" : "可见游戏" }
+    public var recentlyPlayed: String { language == .english ? "Recently Played" : "最近游玩" }
+    public var keyboardSupport: String { language == .english ? "Keyboard Support" : "键鼠支持" }
+    public var browseTitles: String { language == .english ? "Browse Titles" : "浏览游戏" }
+    public var browseTitlesSubtitle: String {
+        language == .english
+        ? "Switch between recently played, newest arrivals, and the full preview catalog."
+        : "在最近游玩、最新加入和完整预览目录之间切换。"
+    }
+    public var catalogPickerLabel: String { language == .english ? "Catalog" : "目录" }
+    public var catalogRecently: String { language == .english ? "Recently" : "最近" }
+    public var catalogNewest: String { language == .english ? "Newest" : "最新" }
+    public var catalogAll: String { language == .english ? "All" : "全部" }
+    public var loadingCatalog: String { language == .english ? "Loading Catalog..." : "正在加载目录..." }
+
+    public var settingsEyebrow: String { settingsTab }
+    public var settingsTitle: String { language == .english ? "Streaming Preferences" : "串流偏好" }
+    public var settingsSubtitle: String {
+        language == .english
+        ? "Tune TURN relay details and demo playback options for the native preview shell."
+        : "为原生预览壳层调整 TURN 中继和演示播放选项。"
+    }
+    public var transport: String { language == .english ? "Transport" : "传输" }
+    public var transportDefault: String { language == .english ? "Default" : "默认" }
+    public var customTurn: String { language == .english ? "Custom TURN" : "自定义 TURN" }
+    public var audio: String { language == .english ? "Audio" : "音频" }
+    public var managed: String { language == .english ? "Managed" : "托管" }
+    public var auto: String { language == .english ? "Auto" : "自动" }
+    public var rumble: String { language == .english ? "Rumble" : "震动" }
+    public var enabled: String { language == .english ? "Enabled" : "已启用" }
+    public var disabled: String { language == .english ? "Disabled" : "已关闭" }
+    public var relayPlaybackTitle: String { language == .english ? "Relay And Playback" : "中继与播放" }
+    public var relayPlaybackSubtitle: String {
+        language == .english
+        ? "These controls already write through the typed settings store and are ready for live migration work."
+        : "这些控件已经接入强类型设置存储，可直接承接后续真实迁移。"
+    }
+
+    public func streamTitle(for route: AppRouter.Route) -> String {
+        switch route {
+        case .streamConsole(let id):
+            return language == .english ? "Console Stream \(id)" : "主机串流 \(id)"
+        case .streamCloud(let id):
+            return language == .english ? "Cloud Stream \(id)" : "云串流 \(id)"
+        case .home, .cloud, .settings:
+            return language == .english ? "Stream" : "串流"
+        }
+    }
+
+    public func streamEyebrow(for route: AppRouter.Route) -> String {
+        switch route {
+        case .streamConsole:
+            return language == .english ? "Console Stream" : "主机串流"
+        case .streamCloud:
+            return language == .english ? "Cloud Stream" : "云串流"
+        case .home, .cloud, .settings:
+            return language == .english ? "Stream" : "串流"
+        }
+    }
+
+    public var streamSubtitle: String {
+        language == .english
+        ? "This is the staged native stream shell. It renders a native preview surface and drives typed session state."
+        : "这是阶段性的原生串流壳层，负责渲染原生预览界面并驱动强类型会话状态。"
+    }
+    public var back: String { language == .english ? "Back" : "返回" }
+    public var engine: String { language == .english ? "Engine" : "引擎" }
+    public var video: String { language == .english ? "Video" : "画面" }
+    public var ready: String { language == .english ? "Ready" : "就绪" }
+    public var pending: String { language == .english ? "Pending" : "等待中" }
+    public var unavailable: String { language == .english ? "Unavailable" : "不可用" }
+    public var streamSurfaceTitle: String { language == .english ? "Stream Surface" : "串流画面" }
+    public var streamSurfaceSubtitle: String {
+        language == .english
+        ? "Run the staged playback flow and observe route, state, and renderer changes in one place."
+        : "运行阶段性播放流程，在同一处观察路由、状态和渲染器变化。"
+    }
+    public var startPreviewStream: String { language == .english ? "Start Preview Stream" : "开始预览串流" }
+    public var starting: String { language == .english ? "Starting..." : "启动中..." }
+    public var stopStream: String { language == .english ? "Stop Stream" : "停止串流" }
+    public var nativeSurface: String { language == .english ? "Native surface" : "原生画面" }
+    public var webViewSurface: String { language == .english ? "Web view surface" : "网页画面" }
+    public var noActiveSession: String { language == .english ? "No active session" : "当前没有活动会话" }
+    public func sessionLabel(_ id: String) -> String {
+        language == .english ? "Session \(id)" : "会话 \(id)"
+    }
+    public var noStreamingSurface: String { language == .english ? "No Streaming Surface" : "没有可用串流画面" }
+    public var noStreamingSurfaceDescription: String {
+        language == .english
+        ? "The selected streaming engine does not expose a render surface yet."
+        : "当前所选串流引擎暂时还没有暴露可渲染画面。"
+    }
+
+    public func streamStateLabel(_ state: StreamingStateMachine.State) -> String {
+        switch state {
+        case .idle:
+            return language == .english ? "Idle" : "空闲"
+        case .pending:
+            return pending
+        case .queued:
+            return language == .english ? "Queued" : "排队中"
+        case .readyToConnect:
+            return ready
+        case .connecting:
+            return language == .english ? "Connecting" : "连接中"
+        case .streaming:
+            return language == .english ? "Streaming" : "串流中"
+        case .stopped:
+            return language == .english ? "Stopped" : "已停止"
+        case .failed:
+            return language == .english ? "Failed" : "失败"
+        }
+    }
+
+    public func streamHelpText(for state: StreamingStateMachine.State) -> String {
+        switch state {
+        case .idle:
+            return language == .english ? "Press start to create a preview session." : "点击开始以创建一个预览会话。"
+        case .pending, .queued:
+            return language == .english ? "The preview session is provisioning." : "预览会话正在准备中。"
+        case .readyToConnect, .connecting:
+            return language == .english ? "The renderer is preparing the native surface." : "渲染器正在准备原生画面。"
+        case .streaming:
+            return language == .english ? "Preview streaming is active." : "预览串流正在运行。"
+        case .stopped:
+            return language == .english ? "The preview session has ended." : "预览会话已结束。"
+        case .failed:
+            return language == .english ? "Review the error and try again." : "请检查错误信息后重试。"
+        }
+    }
+
+    public func localizedPowerState(_ state: ConsolePowerState) -> String {
+        switch state {
+        case .connectedStandby:
+            return language == .english ? "Connected standby" : "联网待机"
+        case .on:
+            return language == .english ? "Online" : "在线"
+        case .off:
+            return language == .english ? "Offline" : "离线"
+        case .unknown:
+            return language == .english ? "Unknown" : "未知"
+        }
+    }
+
+    public func localizedConsoleType(_ type: ConsoleType) -> String {
+        switch type {
+        case .xboxSeriesX:
+            return "Xbox Series X"
+        case .xboxSeriesS:
+            return "Xbox Series S"
+        case .xboxOne:
+            return "Xbox One"
+        case .xboxOneS:
+            return "Xbox One S"
+        case .xboxOneX:
+            return "Xbox One X"
+        case .unknown:
+            return language == .english ? "Unknown device" : "未知设备"
+        }
+    }
+
+    public func localizedInputType(_ type: InputType) -> String {
+        switch type {
+        case .controller:
+            return language == .english ? "Controller" : "手柄"
+        case .mouseAndKeyboard:
+            return language == .english ? "Mouse + Keyboard" : "键盘 + 鼠标"
+        case .touch:
+            return language == .english ? "Touch" : "触控"
+        case .unknown:
+            return language == .english ? "Unknown" : "未知"
+        }
+    }
+}

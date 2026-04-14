@@ -1,14 +1,15 @@
 import SharedDomain
 
 public enum SettingsMapper {
-    public static func withUpdatedTurnServer(
+    public static func withUpdatedPreferences(
         from settings: AppSettings,
+        locale: String,
         url: String,
         username: String,
         credential: String
     ) -> AppSettings {
         AppSettings(
-            locale: settings.locale,
+            locale: locale,
             useMSAL: settings.useMSAL,
             fullscreen: settings.fullscreen,
             resolution: settings.resolution,
@@ -54,6 +55,21 @@ public enum SettingsMapper {
             fsr: settings.fsr,
             fsrSharpness: settings.fsrSharpness,
             debug: settings.debug
+        )
+    }
+
+    public static func withUpdatedTurnServer(
+        from settings: AppSettings,
+        url: String,
+        username: String,
+        credential: String
+    ) -> AppSettings {
+        withUpdatedPreferences(
+            from: settings,
+            locale: settings.locale,
+            url: url,
+            username: username,
+            credential: credential
         )
     }
 }

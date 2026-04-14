@@ -1,53 +1,67 @@
 import PersistenceKit
+import SharedDomain
 import SettingsFeature
 import SwiftUI
 
 public struct SettingsContainerView: View {
     @StateObject private var viewModel: SettingsViewModel
+    private let language: AppLanguage
+    private let onSettingsChanged: ((AppSettings) -> Void)?
 
-    public init(settingsStore: SettingsStoreProtocol) {
+    public init(
+        settingsStore: SettingsStoreProtocol,
+        language: AppLanguage,
+        onSettingsChanged: ((AppSettings) -> Void)? = nil
+    ) {
         _viewModel = StateObject(wrappedValue: SettingsViewModel(settingsStore: settingsStore))
+        self.language = language
+        self.onSettingsChanged = onSettingsChanged
     }
 
     public var body: some View {
+        let strings = ShellStrings(language: language)
+
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 ShellSectionHeader(
-                    eyebrow: "Settings",
-                    title: "Streaming Preferences",
-                    subtitle: "Tune TURN relay details and demo playback options for the native preview shell."
+                    eyebrow: strings.settingsEyebrow,
+                    title: strings.settingsTitle,
+                    subtitle: strings.settingsSubtitle
                 )
 
                 HStack(spacing: 14) {
                     ShellMetricCard(
-                        title: "Transport",
-                        value: viewModel.serverURL.isEmpty ? "Default" : "Custom TURN",
+                        title: strings.transport,
+                        value: viewModel.serverURL.isEmpty ? strings.transportDefault : strings.customTurn,
                         icon: "network",
                         tint: .purple
                     )
                     ShellMetricCard(
-                        title: "Audio",
-                        value: viewModel.settings.enableAudioControl ? "Managed" : "Auto",
+                        title: strings.audio,
+                        value: viewModel.settings.enableAudioControl ? strings.managed : strings.auto,
                         icon: "speaker.wave.2.fill",
                         tint: .orange
                     )
                     ShellMetricCard(
-                        title: "Rumble",
-                        value: viewModel.settings.vibration ? "Enabled" : "Disabled",
+                        title: strings.rumble,
+                        value: viewModel.settings.vibration ? strings.enabled : strings.disabled,
                         icon: "gamecontroller.fill",
                         tint: .green
                     )
                 }
 
                 ShellPanel(
-                    title: "Relay And Playback",
-                    subtitle: "These controls already write through the typed settings store and are ready for live migration work."
+                    title: strings.relayPlaybackTitle,
+                    subtitle: strings.relayPlaybackSubtitle
                 ) {
                     SettingsView(viewModel: viewModel)
                         .padding(0)
                 }
             }
             .padding(28)
+        }
+        .onChange(of: viewModel.settings) { _, settings in
+            onSettingsChanged?(settings)
         }
     }
 }

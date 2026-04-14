@@ -290,6 +290,39 @@ public struct ShellStrings {
     public var fullscreenEnabledHint: String {
         language == .english ? "Fullscreen preference will apply on stream start." : "开始串流时会应用全屏偏好。"
     }
+    public var quickControlsTitle: String { language == .english ? "Quick Controls" : "快捷控制" }
+    public var quickControlsSubtitle: String {
+        language == .english
+        ? "A native take on the original action bar: tune display, audio, fullscreen, and overlay visibility in one place."
+        : "原项目操作栏的原生化版本：在一处调整显示、音频、全屏和性能覆盖层。"
+    }
+    public var displaySettingsAction: String { language == .english ? "Display Settings" : "画面设置" }
+    public var audioSettingsAction: String { language == .english ? "Audio Settings" : "音频设置" }
+    public var togglePerformanceAction: String { language == .english ? "Toggle Performance" : "切换性能信息" }
+    public var openMicAction: String { language == .english ? "Open Mic" : "打开麦克风" }
+    public var closeMicAction: String { language == .english ? "Close Mic" : "关闭麦克风" }
+    public var disconnectAction: String { language == .english ? "Disconnect" : "断开连接" }
+    public var displayPanelTitle: String { language == .english ? "Display" : "显示" }
+    public var displayPanelSubtitle: String {
+        language == .english
+        ? "These staged controls mirror the original app's display tuning model."
+        : "这些阶段性控件对应原项目的画面调节模型。"
+    }
+    public var audioPanelTitle: String { language == .english ? "Audio" : "音频" }
+    public var audioPanelSubtitle: String {
+        language == .english
+        ? "Use a simple native volume control before real transport audio management arrives."
+        : "在真实传输层音频管理接入前，先用一个简洁的原生音量控制承接。"
+    }
+    public var displaySharpness: String { language == .english ? "Sharpness" : "锐度" }
+    public var displaySaturation: String { language == .english ? "Saturation" : "饱和度" }
+    public var displayContrast: String { language == .english ? "Contrast" : "对比度" }
+    public var displayBrightness: String { language == .english ? "Brightness" : "亮度" }
+    public var volumeTitle: String { language == .english ? "Volume" : "音量" }
+    public var savedAction: String { language == .english ? "Saved" : "已保存" }
+    public var disconnectHint: String {
+        language == .english ? "Disconnect returns to the previous catalog view." : "断开连接后会返回上一级目录页面。"
+    }
 
     public func streamStateLabel(_ state: StreamingStateMachine.State) -> String {
         switch state {

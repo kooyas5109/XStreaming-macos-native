@@ -1,5 +1,6 @@
 import PersistenceKit
 import SharedDomain
+import SettingsFeature
 import StreamingFeature
 import SwiftUI
 
@@ -13,9 +14,16 @@ public struct StreamContainerView: View {
     private let language: AppLanguage
     @State private var settings: AppSettings = .defaults
     @State private var performance = StreamPerformanceSnapshot.idle
+    @State private var displayOptions = DisplayOptions(sharpness: 5, saturation: 100, contrast: 100, brightness: 100)
     @State private var state: StreamingStateMachine.State = .idle
     @State private var isStarting = false
     @State private var isStopping = false
+    @State private var showPerformancePanel = true
+    @State private var showDisplayPanel = false
+    @State private var showAudioPanel = false
+    @State private var microphoneOpen = false
+    @State private var previewVolume = 8.0
+    @State private var infoMessage: String?
     @State private var errorMessage: String?
 
     public init(
@@ -109,6 +117,8 @@ public struct StreamContainerView: View {
                         ShellStatusBadge(label: capabilitiesLabel, tint: .secondary)
                     }
 
+                    quickControls(strings: strings)
+
                     streamingSurface
                         .frame(maxWidth: .infinity, minHeight: 420, maxHeight: 520)
                         .background(.black.opacity(0.08))
@@ -128,21 +138,46 @@ public struct StreamContainerView: View {
                     }
                 }
 
-                ShellPanel(
-                    title: strings.performancePanelTitle,
-                    subtitle: strings.performancePanelSubtitle
-                ) {
-                    if settings.performanceStyle {
-                        performanceStrip(strings: strings)
-                    } else {
-                        performanceGrid(strings: strings)
-                    }
+                if showPerformancePanel {
+                    ShellPanel(
+                        title: strings.performancePanelTitle,
+                        subtitle: strings.performancePanelSubtitle
+                    ) {
+                        if settings.performanceStyle {
+                            performanceStrip(strings: strings)
+                        } else {
+                            performanceGrid(strings: strings)
+                        }
 
-                    if settings.fullscreen {
-                        Text(strings.fullscreenEnabledHint)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if settings.fullscreen {
+                            Text(strings.fullscreenEnabledHint)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                }
+
+                if showDisplayPanel {
+                    ShellPanel(
+                        title: strings.displayPanelTitle,
+                        subtitle: strings.displayPanelSubtitle
+                    ) {
+                        displayControls(strings: strings)
+                    }
+                }
+
+                if showAudioPanel {
+                    ShellPanel(
+                        title: strings.audioPanelTitle,
+                        subtitle: strings.audioPanelSubtitle
+                    ) {
+                        audioControls(strings: strings)
+                    }
+                }
+
+                if let infoMessage {
+                    Text(infoMessage)
+                        .foregroundStyle(.green)
                 }
 
                 if let errorMessage {
@@ -217,6 +252,146 @@ public struct StreamContainerView: View {
 
     private var helpText: String {
         ShellStrings(language: language).streamHelpText(for: state)
+    }
+
+    @ViewBuilder
+    private func quickControls(strings: ShellStrings) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(strings.quickControlsTitle)
+                        .font(.headline)
+                    Text(strings.quickControlsSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Menu {
+                    Button(strings.displaySettingsAction) {
+                        showDisplayPanel.toggle()
+                    }
+
+                    Button(strings.audioSettingsAction) {
+                        showAudioPanel.toggle()
+                    }
+
+                    Button(strings.togglePerformanceAction) {
+                        showPerformancePanel.toggle()
+                    }
+
+                    Button(microphoneOpen ? strings.closeMicAction : strings.openMicAction) {
+                        microphoneOpen.toggle()
+                    }
+
+                    Button(strings.fullscreenAction) {
+                        WindowControls.toggleFullscreen()
+                    }
+
+                    Divider()
+
+                    Button(strings.disconnectAction, role: .destructive) {
+                        router.route(to: backRoute)
+                    }
+                } label: {
+                    Label(strings.quickControlsTitle, systemImage: "ellipsis.circle")
+                }
+            }
+
+            HStack(spacing: 10) {
+                ShellStatusBadge(
+                    label: microphoneOpen ? strings.closeMicAction : strings.openMicAction,
+                    tint: microphoneOpen ? .green : .secondary
+                )
+                ShellStatusBadge(
+                    label: showDisplayPanel ? strings.displaySettingsAction : strings.displayPanelTitle,
+                    tint: .blue
+                )
+                ShellStatusBadge(
+                    label: showAudioPanel ? strings.audioSettingsAction : strings.audioPanelTitle,
+                    tint: .orange
+                )
+                Text(strings.disconnectHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func displayControls(strings: ShellStrings) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            displaySlider(
+                title: strings.displaySharpness,
+                value: Binding(
+                    get: { Double(displayOptions.sharpness) },
+                    set: { updateDisplayOptions(sharpness: Int($0.rounded())) }
+                ),
+                range: 0...10,
+                step: 1
+            )
+
+            displaySlider(
+                title: strings.displaySaturation,
+                value: Binding(
+                    get: { Double(displayOptions.saturation) },
+                    set: { updateDisplayOptions(saturation: Int($0.rounded())) }
+                ),
+                range: 50...150,
+                step: 10
+            )
+
+            displaySlider(
+                title: strings.displayContrast,
+                value: Binding(
+                    get: { Double(displayOptions.contrast) },
+                    set: { updateDisplayOptions(contrast: Int($0.rounded())) }
+                ),
+                range: 50...150,
+                step: 10
+            )
+
+            displaySlider(
+                title: strings.displayBrightness,
+                value: Binding(
+                    get: { Double(displayOptions.brightness) },
+                    set: { updateDisplayOptions(brightness: Int($0.rounded())) }
+                ),
+                range: 50...150,
+                step: 10
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func audioControls(strings: ShellStrings) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("\(strings.volumeTitle): \(Int(previewVolume))/10")
+                .font(.headline)
+
+            Slider(value: $previewVolume, in: 0...10, step: 1)
+                .tint(.orange)
+
+            Text(microphoneOpen ? strings.closeMicAction : strings.openMicAction)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func displaySlider(
+        title: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(title): \(Int(value.wrappedValue.rounded()))")
+                .font(.subheadline.weight(.semibold))
+
+            Slider(value: value, in: range, step: step)
+        }
     }
 
     @ViewBuilder
@@ -344,6 +519,7 @@ public struct StreamContainerView: View {
 
     private func loadSettings() {
         settings = (try? settingsStore.load()) ?? .defaults
+        displayOptions = settings.displayOptions
     }
 
     private func refreshPerformance(for state: StreamingStateMachine.State? = nil) {
@@ -354,6 +530,28 @@ public struct StreamContainerView: View {
             settings: settings,
             nativeEngine: engine.capabilities.supportsRumble
         )
+    }
+
+    private func updateDisplayOptions(
+        sharpness: Int? = nil,
+        saturation: Int? = nil,
+        contrast: Int? = nil,
+        brightness: Int? = nil
+    ) {
+        displayOptions = DisplayOptions(
+            sharpness: sharpness ?? displayOptions.sharpness,
+            saturation: saturation ?? displayOptions.saturation,
+            contrast: contrast ?? displayOptions.contrast,
+            brightness: brightness ?? displayOptions.brightness
+        )
+
+        let updated = SettingsMapper.withUpdatedDisplayOptions(
+            from: settings,
+            displayOptions: displayOptions
+        )
+        settings = updated
+        try? settingsStore.save(updated)
+        infoMessage = ShellStrings(language: language).savedAction
     }
 }
 

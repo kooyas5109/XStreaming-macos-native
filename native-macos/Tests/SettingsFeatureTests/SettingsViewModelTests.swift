@@ -82,3 +82,16 @@ func resetRestoresDefaultSettings() throws {
     #expect(model.serverURL == "")
     #expect(model.toastMessage == "Reset")
 }
+
+@Test
+func settingsMapperUpdatesDisplayOptionsWithoutTouchingLocale() {
+    let displayOptions = DisplayOptions(sharpness: 9, saturation: 130, contrast: 120, brightness: 110)
+
+    let updated = SettingsMapper.withUpdatedDisplayOptions(
+        from: .defaults,
+        displayOptions: displayOptions
+    )
+
+    #expect(updated.displayOptions == displayOptions)
+    #expect(updated.locale == AppSettings.defaults.locale)
+}

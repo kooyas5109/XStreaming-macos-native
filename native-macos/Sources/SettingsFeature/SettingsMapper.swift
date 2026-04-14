@@ -128,4 +128,58 @@ public enum SettingsMapper {
             debug: settings.debug
         )
     }
+
+    public static func withUpdatedStreamingPreferences(
+        from settings: AppSettings,
+        resolution: Int,
+        videoFormat: String,
+        xhomeBitrate: Int,
+        xcloudBitrate: Int,
+        audioBitrate: Int
+    ) -> AppSettings {
+        AppSettings(
+            locale: settings.locale,
+            useMSAL: settings.useMSAL,
+            fullscreen: settings.fullscreen,
+            resolution: resolution,
+            xhomeAutoConnectServerID: settings.xhomeAutoConnectServerID,
+            xhomeBitrateMode: settings.xhomeBitrateMode,
+            xhomeBitrate: xhomeBitrate,
+            xcloudBitrateMode: settings.xcloudBitrateMode,
+            xcloudBitrate: xcloudBitrate,
+            audioBitrateMode: settings.audioBitrateMode,
+            audioBitrate: audioBitrate,
+            enableAudioControl: settings.enableAudioControl,
+            enableAudioRumble: settings.enableAudioRumble,
+            audioRumbleThreshold: settings.audioRumbleThreshold,
+            preferredGameLanguage: settings.preferredGameLanguage,
+            forceRegionIP: settings.forceRegionIP,
+            codec: settings.codec,
+            pollingRate: settings.pollingRate,
+            coop: settings.coop,
+            vibration: settings.vibration,
+            vibrationMode: settings.vibrationMode,
+            gamepadKernel: settings.gamepadKernel,
+            gamepadMix: settings.gamepadMix,
+            gamepadIndex: settings.gamepadIndex,
+            deadZone: settings.deadZone,
+            edgeCompensation: settings.edgeCompensation,
+            forceTriggerRumble: settings.forceTriggerRumble,
+            powerOn: settings.powerOn,
+            videoFormat: videoFormat,
+            virtualGamepadOpacity: settings.virtualGamepadOpacity,
+            ipv6: settings.ipv6,
+            enableNativeMouseKeyboard: settings.enableNativeMouseKeyboard,
+            mouseSensitive: settings.mouseSensitive,
+            performanceStyle: settings.performanceStyle,
+            turnServer: settings.turnServer,
+            backgroundKeepalive: settings.backgroundKeepalive,
+            inputMouseKeyboardMapping: settings.inputMouseKeyboardMapping,
+            displayOptions: settings.displayOptions,
+            useVulkan: settings.useVulkan,
+            fsr: settings.fsr,
+            fsrSharpness: settings.fsrSharpness,
+            debug: settings.debug
+        )
+    }
 }

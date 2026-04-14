@@ -8,6 +8,11 @@ public final class SettingsViewModel: ObservableObject {
     @Published public var preferredGameLanguage: String = "en-US"
     @Published public var launchesFullscreen: Bool = false
     @Published public var performanceStyleEnabled: Bool = false
+    @Published public var resolution: Int = 720
+    @Published public var videoFormat: String = ""
+    @Published public var hostBitrate: Double = 20
+    @Published public var cloudBitrate: Double = 20
+    @Published public var audioBitrate: Double = 20
     @Published public var serverURL: String = ""
     @Published public var serverUsername: String = ""
     @Published public var serverCredential: String = ""
@@ -28,6 +33,11 @@ public final class SettingsViewModel: ObservableObject {
         preferredGameLanguage = loaded.preferredGameLanguage
         launchesFullscreen = loaded.fullscreen
         performanceStyleEnabled = loaded.performanceStyle
+        resolution = loaded.resolution
+        videoFormat = loaded.videoFormat
+        hostBitrate = Double(loaded.xhomeBitrate)
+        cloudBitrate = Double(loaded.xcloudBitrate)
+        audioBitrate = Double(loaded.audioBitrate)
         serverURL = loaded.turnServer.url
         serverUsername = loaded.turnServer.username
         serverCredential = loaded.turnServer.credential
@@ -41,7 +51,7 @@ public final class SettingsViewModel: ObservableObject {
             return
         }
 
-        let updated = SettingsMapper.withUpdatedPreferences(
+        let settingsWithPresentation = SettingsMapper.withUpdatedPreferences(
             from: settings,
             locale: selectedLanguage.localeCode,
             preferredGameLanguage: preferredGameLanguage,
@@ -50,6 +60,15 @@ public final class SettingsViewModel: ObservableObject {
             url: serverURL,
             username: serverUsername,
             credential: serverCredential
+        )
+
+        let updated = SettingsMapper.withUpdatedStreamingPreferences(
+            from: settingsWithPresentation,
+            resolution: resolution,
+            videoFormat: videoFormat,
+            xhomeBitrate: Int(hostBitrate.rounded()),
+            xcloudBitrate: Int(cloudBitrate.rounded()),
+            audioBitrate: Int(audioBitrate.rounded())
         )
 
         try settingsStore.save(updated)
@@ -65,6 +84,11 @@ public final class SettingsViewModel: ObservableObject {
         preferredGameLanguage = resetSettings.preferredGameLanguage
         launchesFullscreen = resetSettings.fullscreen
         performanceStyleEnabled = resetSettings.performanceStyle
+        resolution = resetSettings.resolution
+        videoFormat = resetSettings.videoFormat
+        hostBitrate = Double(resetSettings.xhomeBitrate)
+        cloudBitrate = Double(resetSettings.xcloudBitrate)
+        audioBitrate = Double(resetSettings.audioBitrate)
         serverURL = resetSettings.turnServer.url
         serverUsername = resetSettings.turnServer.username
         serverCredential = resetSettings.turnServer.credential

@@ -59,6 +59,55 @@ public struct SettingsView: View {
                 }
 
                 SettingsFieldRow(
+                    title: strings.streamingTitle,
+                    prompt: strings.streamingPrompt
+                ) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Picker(strings.resolutionTitle, selection: $viewModel.resolution) {
+                            Text("720p").tag(720)
+                            Text("1080p").tag(1080)
+                            Text("1080p HQ").tag(1081)
+                        }
+                        .pickerStyle(.segmented)
+
+                        Picker(strings.videoFormatTitle, selection: $viewModel.videoFormat) {
+                            Text(strings.videoFormatAspectRatio).tag("")
+                            Text("Stretch").tag("Stretch")
+                            Text("Zoom").tag("Zoom")
+                            Text("16:10").tag("16:10")
+                            Text("18:9").tag("18:9")
+                            Text("21:9").tag("21:9")
+                            Text("4:3").tag("4:3")
+                        }
+                        .pickerStyle(.menu)
+
+                        SettingsSliderRow(
+                            title: strings.hostBitrateTitle,
+                            value: $viewModel.hostBitrate,
+                            range: 5...50,
+                            step: 1,
+                            suffix: "Mb/s"
+                        )
+
+                        SettingsSliderRow(
+                            title: strings.cloudBitrateTitle,
+                            value: $viewModel.cloudBitrate,
+                            range: 5...50,
+                            step: 1,
+                            suffix: "Mb/s"
+                        )
+
+                        SettingsSliderRow(
+                            title: strings.audioBitrateTitle,
+                            value: $viewModel.audioBitrate,
+                            range: 5...40,
+                            step: 1,
+                            suffix: "Kb/s"
+                        )
+                    }
+                }
+
+                SettingsFieldRow(
                     title: strings.serverURLTitle,
                     prompt: strings.serverURLPrompt
                 ) {
@@ -172,6 +221,40 @@ private struct SettingsStrings {
         language == .english ? "Prefer performance style" : "优先使用性能模式"
     }
 
+    var streamingTitle: String {
+        language == .english ? "Streaming Tuning" : "串流调节"
+    }
+
+    var streamingPrompt: String {
+        language == .english
+        ? "Mirror the highest-impact tuning controls from the original app."
+        : "承接原项目里对观感影响最大的串流调节项。"
+    }
+
+    var resolutionTitle: String {
+        language == .english ? "Resolution" : "分辨率"
+    }
+
+    var videoFormatTitle: String {
+        language == .english ? "Video Format" : "画面比例"
+    }
+
+    var videoFormatAspectRatio: String {
+        language == .english ? "Aspect ratio" : "保持比例"
+    }
+
+    var hostBitrateTitle: String {
+        language == .english ? "Host Bitrate" : "主机码率"
+    }
+
+    var cloudBitrateTitle: String {
+        language == .english ? "Cloud Bitrate" : "云端码率"
+    }
+
+    var audioBitrateTitle: String {
+        language == .english ? "Audio Bitrate" : "音频码率"
+    }
+
     var serverURLTitle: String {
         language == .english ? "Server URL" : "服务器地址"
     }
@@ -242,6 +325,23 @@ private struct SettingsFieldRow<Content: View>: View {
             Text(prompt)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct SettingsSliderRow: View {
+    let title: String
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+    let suffix: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(title): \(Int(value.rounded())) \(suffix)")
+                .font(.subheadline.weight(.semibold))
+
+            Slider(value: $value, in: range, step: step)
         }
     }
 }

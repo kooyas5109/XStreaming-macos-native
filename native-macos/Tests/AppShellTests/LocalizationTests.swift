@@ -10,6 +10,9 @@ func localizationStoreLoadsSavedChineseLocale() throws {
     let settings = SettingsMapper.withUpdatedPreferences(
         from: .defaults,
         locale: AppLanguage.simplifiedChinese.localeCode,
+        preferredGameLanguage: AppSettings.defaults.preferredGameLanguage,
+        fullscreen: AppSettings.defaults.fullscreen,
+        performanceStyle: AppSettings.defaults.performanceStyle,
         url: "",
         username: "",
         credential: ""
@@ -19,5 +22,5 @@ func localizationStoreLoadsSavedChineseLocale() throws {
 
     localization.load()
 
-    #expect(localization.language == .simplifiedChinese)
+    #expect(localization.language == AppLanguage.simplifiedChinese)
 }

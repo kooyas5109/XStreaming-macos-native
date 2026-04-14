@@ -4,6 +4,9 @@ public enum SettingsMapper {
     public static func withUpdatedPreferences(
         from settings: AppSettings,
         locale: String,
+        preferredGameLanguage: String,
+        fullscreen: Bool,
+        performanceStyle: Bool,
         url: String,
         username: String,
         credential: String
@@ -11,7 +14,7 @@ public enum SettingsMapper {
         AppSettings(
             locale: locale,
             useMSAL: settings.useMSAL,
-            fullscreen: settings.fullscreen,
+            fullscreen: fullscreen,
             resolution: settings.resolution,
             xhomeAutoConnectServerID: settings.xhomeAutoConnectServerID,
             xhomeBitrateMode: settings.xhomeBitrateMode,
@@ -23,7 +26,7 @@ public enum SettingsMapper {
             enableAudioControl: settings.enableAudioControl,
             enableAudioRumble: settings.enableAudioRumble,
             audioRumbleThreshold: settings.audioRumbleThreshold,
-            preferredGameLanguage: settings.preferredGameLanguage,
+            preferredGameLanguage: preferredGameLanguage,
             forceRegionIP: settings.forceRegionIP,
             codec: settings.codec,
             pollingRate: settings.pollingRate,
@@ -42,7 +45,7 @@ public enum SettingsMapper {
             ipv6: settings.ipv6,
             enableNativeMouseKeyboard: settings.enableNativeMouseKeyboard,
             mouseSensitive: settings.mouseSensitive,
-            performanceStyle: settings.performanceStyle,
+            performanceStyle: performanceStyle,
             turnServer: TurnServerConfiguration(
                 url: url,
                 username: username,
@@ -67,6 +70,9 @@ public enum SettingsMapper {
         withUpdatedPreferences(
             from: settings,
             locale: settings.locale,
+            preferredGameLanguage: settings.preferredGameLanguage,
+            fullscreen: settings.fullscreen,
+            performanceStyle: settings.performanceStyle,
             url: url,
             username: username,
             credential: credential

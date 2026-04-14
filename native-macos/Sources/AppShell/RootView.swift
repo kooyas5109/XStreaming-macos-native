@@ -66,6 +66,30 @@ public struct RootView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            ToolbarItemGroup(placement: .automatic) {
+                ShellToolbarBadge(
+                    label: strings.shellLanguage,
+                    value: strings.languageBadgeTitle,
+                    icon: "character.bubble",
+                    tint: .blue
+                )
+
+                ShellToolbarBadge(
+                    label: strings.engine,
+                    value: environment.streamingEngine.capabilities.supportsRumble ? strings.nativeLabel : strings.compatibilityLabel,
+                    icon: "sparkles.tv",
+                    tint: .cyan
+                )
+
+                if router.currentRoute != .settings {
+                    Button {
+                        router.route(to: .settings)
+                    } label: {
+                        Label(strings.openSettingsAction, systemImage: "slider.horizontal.3")
+                    }
+                }
+            }
         }
         .task {
             localization.load()

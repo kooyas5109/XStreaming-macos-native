@@ -26,6 +26,24 @@ public struct ShellStrings {
         }
     }
 
+    public var languageBadgeTitle: String {
+        switch language {
+        case .english:
+            return "EN"
+        case .simplifiedChinese:
+            return "中文"
+        }
+    }
+
+    public var languageStatusSummary: String {
+        switch language {
+        case .english:
+            return "English UI"
+        case .simplifiedChinese:
+            return "中文界面"
+        }
+    }
+
     public var nativeEngineActive: String {
         switch language {
         case .english:
@@ -157,6 +175,16 @@ public struct ShellStrings {
         ? "Tune TURN relay details and demo playback options for the native preview shell."
         : "为原生预览壳层调整 TURN 中继和演示播放选项。"
     }
+    public var displayMode: String { language == .english ? "Display" : "显示" }
+    public var immersive: String { language == .english ? "Immersive" : "沉浸式" }
+    public var windowed: String { language == .english ? "Windowed" : "窗口化" }
+    public var experience: String { language == .english ? "Experience" : "体验" }
+    public var balanced: String { language == .english ? "Balanced" : "平衡" }
+    public var performance: String { language == .english ? "Performance" : "性能" }
+    public var shellLanguage: String { language == .english ? "Shell Language" : "界面语言" }
+    public var gameLanguage: String { language == .english ? "Game Language" : "游戏语言" }
+    public var englishLanguage: String { language == .english ? "English" : "英文" }
+    public var chineseLanguage: String { language == .english ? "Chinese" : "中文" }
     public var transport: String { language == .english ? "Transport" : "传输" }
     public var transportDefault: String { language == .english ? "Default" : "默认" }
     public var customTurn: String { language == .english ? "Custom TURN" : "自定义 TURN" }
@@ -172,6 +200,13 @@ public struct ShellStrings {
         ? "These controls already write through the typed settings store and are ready for live migration work."
         : "这些控件已经接入强类型设置存储，可直接承接后续真实迁移。"
     }
+    public var shellStatusTitle: String { language == .english ? "Shell Status" : "壳层状态" }
+    public var shellStatusSubtitle: String {
+        language == .english
+        ? "Quickly inspect the current interface language, display mode, and preview posture."
+        : "快速查看当前界面语言、显示模式和预览状态。"
+    }
+    public var openSettingsAction: String { language == .english ? "Open Settings" : "打开设置" }
 
     public func streamTitle(for route: AppRouter.Route) -> String {
         switch route {
@@ -307,5 +342,12 @@ public struct ShellStrings {
         case .unknown:
             return language == .english ? "Unknown" : "未知"
         }
+    }
+
+    public func localizedPreferredGameLanguage(_ locale: String) -> String {
+        if locale.lowercased().hasPrefix("zh") {
+            return chineseLanguage
+        }
+        return englishLanguage
     }
 }

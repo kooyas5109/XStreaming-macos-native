@@ -13,9 +13,9 @@ public struct SettingsView: View {
 
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(strings.turnRelayTitle)
+                Text(strings.preferencesTitle)
                     .font(.headline)
-                Text(strings.turnRelaySubtitle)
+                Text(strings.preferencesSubtitle)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -32,6 +32,30 @@ public struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+
+                SettingsFieldRow(
+                    title: strings.gameLanguageTitle,
+                    prompt: strings.gameLanguagePrompt
+                ) {
+                    Picker(strings.gameLanguageTitle, selection: $viewModel.preferredGameLanguage) {
+                        Text(strings.gameLanguageEnglish)
+                            .tag("en-US")
+                        Text(strings.gameLanguageChinese)
+                            .tag("zh-CN")
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                SettingsFieldRow(
+                    title: strings.displayModeTitle,
+                    prompt: strings.displayModePrompt
+                ) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(strings.fullscreenTitle, isOn: $viewModel.launchesFullscreen)
+                        Toggle(strings.performanceStyleTitle, isOn: $viewModel.performanceStyleEnabled)
+                    }
+                    .toggleStyle(.switch)
                 }
 
                 SettingsFieldRow(
@@ -98,14 +122,14 @@ public struct SettingsView: View {
 private struct SettingsStrings {
     let language: AppLanguage
 
-    var turnRelayTitle: String {
-        language == .english ? "TURN Relay" : "TURN 中继"
+    var preferencesTitle: String {
+        language == .english ? "Demo Preferences" : "演示偏好"
     }
 
-    var turnRelaySubtitle: String {
+    var preferencesSubtitle: String {
         language == .english
-        ? "These values already persist through the typed settings store and are ready to be wired into real transport configuration."
-        : "这些设置已经通过强类型存储持久化，可以直接接入真实传输配置。"
+        ? "These controls persist through the typed settings store and already shape how the native preview shell behaves."
+        : "这些控件会通过强类型设置存储持久化，并且已经会影响当前原生预览壳层的行为。"
     }
 
     var languageTitle: String {
@@ -114,6 +138,38 @@ private struct SettingsStrings {
 
     var languagePrompt: String {
         language == .english ? "Switch the preview shell between English and Chinese." : "在英文和中文之间切换预览界面。"
+    }
+
+    var gameLanguageTitle: String {
+        language == .english ? "Game Content Language" : "游戏内容语言"
+    }
+
+    var gameLanguagePrompt: String {
+        language == .english ? "Set the preferred catalog and playback language for future service wiring." : "为后续真实服务接入预设目录和播放语言。"
+    }
+
+    var gameLanguageEnglish: String {
+        language == .english ? "English" : "英文"
+    }
+
+    var gameLanguageChinese: String {
+        language == .english ? "Chinese" : "中文"
+    }
+
+    var displayModeTitle: String {
+        language == .english ? "Display & Feel" : "显示与体验"
+    }
+
+    var displayModePrompt: String {
+        language == .english ? "Shape the window behavior and the performance-leaning demo profile." : "调整窗口行为和偏性能的演示模式。"
+    }
+
+    var fullscreenTitle: String {
+        language == .english ? "Launch stream in fullscreen" : "以全屏方式启动串流"
+    }
+
+    var performanceStyleTitle: String {
+        language == .english ? "Prefer performance style" : "优先使用性能模式"
     }
 
     var serverURLTitle: String {

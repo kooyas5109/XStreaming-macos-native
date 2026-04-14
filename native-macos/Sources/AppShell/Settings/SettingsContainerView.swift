@@ -31,23 +31,42 @@ public struct SettingsContainerView: View {
 
                 HStack(spacing: 14) {
                     ShellMetricCard(
-                        title: strings.transport,
-                        value: viewModel.serverURL.isEmpty ? strings.transportDefault : strings.customTurn,
-                        icon: "network",
-                        tint: .purple
+                        title: strings.shellLanguage,
+                        value: strings.languageStatusSummary,
+                        icon: "character.bubble",
+                        tint: .blue
                     )
                     ShellMetricCard(
-                        title: strings.audio,
-                        value: viewModel.settings.enableAudioControl ? strings.managed : strings.auto,
-                        icon: "speaker.wave.2.fill",
+                        title: strings.displayMode,
+                        value: viewModel.launchesFullscreen ? strings.immersive : strings.windowed,
+                        icon: "macwindow",
                         tint: .orange
                     )
                     ShellMetricCard(
-                        title: strings.rumble,
-                        value: viewModel.settings.vibration ? strings.enabled : strings.disabled,
-                        icon: "gamecontroller.fill",
+                        title: strings.experience,
+                        value: viewModel.performanceStyleEnabled ? strings.performance : strings.balanced,
+                        icon: "speedometer",
                         tint: .green
                     )
+                }
+
+                ShellPanel(
+                    title: strings.shellStatusTitle,
+                    subtitle: strings.shellStatusSubtitle
+                ) {
+                    HStack(spacing: 12) {
+                        ShellStatusBadge(label: strings.languageStatusSummary, tint: .blue)
+                        ShellStatusBadge(
+                            label: strings.localizedPreferredGameLanguage(viewModel.preferredGameLanguage),
+                            tint: .secondary
+                        )
+                        ShellStatusBadge(
+                            label: viewModel.serverURL.isEmpty ? strings.transportDefault : strings.customTurn,
+                            tint: .purple
+                        )
+
+                        Spacer()
+                    }
                 }
 
                 ShellPanel(

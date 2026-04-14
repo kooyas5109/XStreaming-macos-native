@@ -5,6 +5,9 @@ import SharedDomain
 @MainActor
 public final class SettingsViewModel: ObservableObject {
     @Published public var selectedLanguage: AppLanguage = .english
+    @Published public var preferredGameLanguage: String = "en-US"
+    @Published public var launchesFullscreen: Bool = false
+    @Published public var performanceStyleEnabled: Bool = false
     @Published public var serverURL: String = ""
     @Published public var serverUsername: String = ""
     @Published public var serverCredential: String = ""
@@ -22,6 +25,9 @@ public final class SettingsViewModel: ObservableObject {
         let loaded = try settingsStore.load()
         settings = loaded
         selectedLanguage = AppLanguage(localeCode: loaded.locale)
+        preferredGameLanguage = loaded.preferredGameLanguage
+        launchesFullscreen = loaded.fullscreen
+        performanceStyleEnabled = loaded.performanceStyle
         serverURL = loaded.turnServer.url
         serverUsername = loaded.turnServer.username
         serverCredential = loaded.turnServer.credential
@@ -38,6 +44,9 @@ public final class SettingsViewModel: ObservableObject {
         let updated = SettingsMapper.withUpdatedPreferences(
             from: settings,
             locale: selectedLanguage.localeCode,
+            preferredGameLanguage: preferredGameLanguage,
+            fullscreen: launchesFullscreen,
+            performanceStyle: performanceStyleEnabled,
             url: serverURL,
             username: serverUsername,
             credential: serverCredential
@@ -53,6 +62,9 @@ public final class SettingsViewModel: ObservableObject {
         let resetSettings = try settingsStore.reset()
         settings = resetSettings
         selectedLanguage = AppLanguage(localeCode: resetSettings.locale)
+        preferredGameLanguage = resetSettings.preferredGameLanguage
+        launchesFullscreen = resetSettings.fullscreen
+        performanceStyleEnabled = resetSettings.performanceStyle
         serverURL = resetSettings.turnServer.url
         serverUsername = resetSettings.turnServer.username
         serverCredential = resetSettings.turnServer.credential

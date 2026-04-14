@@ -64,6 +64,33 @@ struct ShellStatusBadge: View {
     }
 }
 
+struct ShellToolbarBadge: View {
+    let label: String
+    let value: String
+    let icon: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.caption.weight(.semibold))
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            Capsule(style: .circular)
+                .fill(.thinMaterial)
+        )
+    }
+}
+
 struct ShellPanel<Content: View>: View {
     let title: String
     let subtitle: String?

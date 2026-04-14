@@ -13,12 +13,18 @@ func savingTurnServerUpdatesSettingsStore() async throws {
     model.serverURL = "turn:relay.example.com"
     model.serverUsername = "user"
     model.serverCredential = "secret"
+    model.preferredGameLanguage = "zh-CN"
+    model.launchesFullscreen = true
+    model.performanceStyleEnabled = true
 
     try model.save()
 
     let persisted = try store.load()
     #expect(persisted.turnServer.url == "turn:relay.example.com")
     #expect(persisted.locale == "en")
+    #expect(persisted.preferredGameLanguage == "zh-CN")
+    #expect(persisted.fullscreen == true)
+    #expect(persisted.performanceStyle == true)
     #expect(model.toastMessage == "Saved")
 }
 
@@ -53,8 +59,12 @@ func savingInvalidTurnServerShowsValidationError() throws {
 @MainActor
 @Test
 func resetRestoresDefaultSettings() throws {
-    let store = InMemorySettingsStore(initialValue: SettingsMapper.withUpdatedTurnServer(
+    let store = InMemorySettingsStore(initialValue: SettingsMapper.withUpdatedPreferences(
         from: .defaults,
+        locale: AppLanguage.simplifiedChinese.localeCode,
+        preferredGameLanguage: "zh-CN",
+        fullscreen: true,
+        performanceStyle: true,
         url: "turn:relay.example.com",
         username: "user",
         credential: "secret"
@@ -66,6 +76,9 @@ func resetRestoresDefaultSettings() throws {
 
     #expect(model.settings == .defaults)
     #expect(model.selectedLanguage == .english)
+    #expect(model.preferredGameLanguage == "en-US")
+    #expect(model.launchesFullscreen == false)
+    #expect(model.performanceStyleEnabled == false)
     #expect(model.serverURL == "")
     #expect(model.toastMessage == "Reset")
 }

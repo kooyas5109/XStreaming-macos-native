@@ -116,6 +116,14 @@ private actor TestStreamingRepository: StreamingRepository {
 }
 
 private actor TestStreamingEngine: StreamingEngineProtocol {
+    nonisolated let capabilities = StreamingEngineCapabilities(
+        supportsVideo: true,
+        supportsAudio: true,
+        supportsPointerInput: false,
+        supportsControllerInput: true,
+        supportsNativeOverlay: false
+    )
+
     var prepareCalls = 0
     var startCalls = 0
     var stopCalls = 0

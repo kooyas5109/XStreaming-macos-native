@@ -90,7 +90,10 @@ let package = Package(
         .target(
             name: "StreamingFeature",
             dependencies: ["SharedDomain", "PersistenceKit", "NetworkingKit", "SupportKit"],
-            path: "Sources/StreamingFeature"
+            path: "Sources/StreamingFeature",
+            resources: [
+                .process("Compatibility/BridgeScript.js")
+            ]
         ),
         .target(
             name: "SupportKit",

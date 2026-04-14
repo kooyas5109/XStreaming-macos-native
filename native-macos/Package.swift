@@ -79,7 +79,7 @@ let package = Package(
         ),
         .target(
             name: "ConsoleFeature",
-            dependencies: ["SharedDomain", "PersistenceKit"],
+            dependencies: ["SharedDomain", "PersistenceKit", "NetworkingKit"],
             path: "Sources/ConsoleFeature"
         ),
         .target(
@@ -136,7 +136,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ConsoleFeatureTests",
-            dependencies: ["ConsoleFeature", "SharedDomain", "PersistenceKit"],
+            dependencies: ["ConsoleFeature", "SharedDomain", "PersistenceKit", "NetworkingKit"],
             path: "Tests/ConsoleFeatureTests"
         ),
         .testTarget(

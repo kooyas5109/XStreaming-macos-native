@@ -52,6 +52,13 @@ public final class ConsoleService: @unchecked Sendable {
             cacheStore: InMemoryCacheStore()
         )
     }
+
+    public static func live(tokenStore: TokenStoreProtocol) -> ConsoleService {
+        ConsoleService(
+            repository: LiveConsoleRepository(tokenStore: tokenStore),
+            cacheStore: InMemoryCacheStore()
+        )
+    }
 }
 
 enum ConsoleFixtures {

@@ -111,7 +111,7 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
     }
 
     public func restoreSession(from tokens: StoredTokens?) async throws -> AuthSignInResult {
-        guard let tokens, let authToken = tokens.authToken, authToken.isEmpty == false else {
+        guard let tokens, tokens.hasRestorableLiveSession else {
             return AuthSignInResult(authState: .signedOut, tokens: StoredTokens())
         }
 

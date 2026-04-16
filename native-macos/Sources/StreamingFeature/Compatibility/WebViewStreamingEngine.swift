@@ -78,7 +78,7 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
         }
     }
 
-    public func start(session: StreamingSession) async throws {
+    public func start(session: StreamingSession, signaling: StreamingSignalingClient? = nil) async throws {
         if currentSession?.id != session.id {
             try await prepare(session: session)
         }

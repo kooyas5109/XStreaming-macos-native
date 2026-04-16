@@ -3,7 +3,7 @@ import NetworkingKit
 import PersistenceKit
 import SharedDomain
 
-public protocol StreamingRepository: Sendable {
+public protocol StreamingRepository: StreamingSignalingClient {
     func createSession(kind: StreamingKind, targetID: String) async throws -> StreamingSession
     func refreshSession(sessionID: String) async throws -> StreamingSession
     func connectSession(sessionID: String) async throws -> StreamingSession

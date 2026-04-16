@@ -28,8 +28,19 @@ public struct StreamingEngineCapabilities: Equatable, Sendable {
 public protocol StreamingEngineProtocol: Sendable {
     var capabilities: StreamingEngineCapabilities { get }
     func prepare(session: StreamingSession) async throws
-    func start(session: StreamingSession) async throws
+    func start(session: StreamingSession, signaling: StreamingSignalingClient?) async throws
     func stop() async
+}
+
+public extension StreamingEngineProtocol {
+    func start(session: StreamingSession) async throws {
+        try await start(session: session, signaling: nil)
+    }
+}
+
+public protocol StreamingSignalingClient: Sendable {
+    func exchangeSDP(sessionID: String, offerSDP: String) async throws -> StreamingSDPAnswer
+    func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate]
 }
 
 public struct PreviewStreamingEngine: StreamingEngineProtocol {
@@ -46,7 +57,7 @@ public struct PreviewStreamingEngine: StreamingEngineProtocol {
 
     public func prepare(session: StreamingSession) async throws {}
 
-    public func start(session: StreamingSession) async throws {}
+    public func start(session: StreamingSession, signaling: StreamingSignalingClient?) async throws {}
 
     public func stop() async {}
 }

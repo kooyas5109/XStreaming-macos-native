@@ -28,6 +28,7 @@ func streamingServiceStartsEngineWhenSessionBecomesReady() async throws {
     #expect(await repository.connectCalls == ["stream-session-1"])
     #expect(await engine.prepareCalls == 1)
     #expect(await engine.startCalls == 1)
+    #expect(await engine.signalingStartCalls == 1)
 }
 
 @Test
@@ -82,6 +83,33 @@ func streamingServiceWaitsForStartedStateAfterConnectHandshake() async throws {
     #expect(await repository.connectCalls == ["stream-session-1"])
     #expect(await engine.prepareCalls == 1)
     #expect(await engine.startCalls == 1)
+    #expect(await engine.signalingStartCalls == 1)
+}
+
+@Test
+func streamingServiceStartsEngineWhenRemoteSessionIsAlreadyStarted() async throws {
+    let repository = TestStreamingRepository(
+        createdSession: StreamingFixtures.pendingSession,
+        refreshResponses: [StreamingFixtures.startedSession]
+    )
+    let engine = TestStreamingEngine()
+    let service = StreamingService(
+        repository: repository,
+        engine: engine,
+        monitor: StreamingSessionMonitor(
+            repository: repository,
+            maxAttempts: 1,
+            pollIntervalNanoseconds: 1_000_000
+        )
+    )
+
+    let state = try await service.startStreaming(kind: .cloud, targetID: "title-1")
+
+    #expect(state.session?.state == .started)
+    #expect(await repository.connectCalls == [])
+    #expect(await engine.prepareCalls == 1)
+    #expect(await engine.startCalls == 1)
+    #expect(await engine.signalingStartCalls == 1)
 }
 
 @Test
@@ -219,14 +247,18 @@ private actor TestStreamingEngine: StreamingEngineProtocol {
 
     var prepareCalls = 0
     var startCalls = 0
+    var signalingStartCalls = 0
     var stopCalls = 0
 
     func prepare(session: StreamingSession) async throws {
         prepareCalls += 1
     }
 
-    func start(session: StreamingSession) async throws {
+    func start(session: StreamingSession, signaling: StreamingSignalingClient?) async throws {
         startCalls += 1
+        if signaling != nil {
+            signalingStartCalls += 1
+        }
     }
 
     func stop() async {

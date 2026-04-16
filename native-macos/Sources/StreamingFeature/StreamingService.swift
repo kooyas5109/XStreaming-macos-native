@@ -1,7 +1,7 @@
 import Foundation
 import SharedDomain
 
-public final class StreamingService: @unchecked Sendable {
+public final class StreamingService: @unchecked Sendable, StreamingSignalingClient {
     private let repository: StreamingRepository
     private let engine: StreamingEngineProtocol
     private let monitor: StreamingSessionMonitor
@@ -49,14 +49,10 @@ public final class StreamingService: @unchecked Sendable {
                 return state
             }
 
-            try await engine.prepare(session: connectedSession)
-            state = StreamingStateMachine.reduce(state, event: .enginePrepared)
-
-            try await engine.start(session: connectedSession)
-            return StreamingStateMachine.reduce(state, event: .engineStarted)
+            return try await startEngine(for: connectedSession, from: state)
 
         case .started:
-            return StreamingStateMachine.reduce(state, event: .engineStarted)
+            return try await startEngine(for: terminalSession, from: state)
 
         case .failed:
             return StreamingStateMachine.reduce(state, event: .failed(terminalSession.errorDetails))
@@ -85,6 +81,17 @@ public final class StreamingService: @unchecked Sendable {
         try await repository.stopSession(sessionID: sessionID)
         await engine.stop()
         return StreamingStateMachine.reduce(.idle, event: .stopped)
+    }
+
+    private func startEngine(
+        for session: StreamingSession,
+        from state: StreamingStateMachine.State
+    ) async throws -> StreamingStateMachine.State {
+        try await engine.prepare(session: session)
+        let preparedState = StreamingStateMachine.reduce(state, event: .enginePrepared)
+
+        try await engine.start(session: session, signaling: self)
+        return StreamingStateMachine.reduce(preparedState, event: .engineStarted)
     }
 
     public static func preview() -> StreamingService {

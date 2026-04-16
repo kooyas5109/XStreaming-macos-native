@@ -38,13 +38,17 @@ public final class NativeStreamingEngine: StreamingEngineProtocol {
         videoRenderer.attach(trackID: session.id)
     }
 
-    public func start(session: StreamingSession) async throws {
+    public func start(session: StreamingSession, signaling: StreamingSignalingClient? = nil) async throws {
         if currentSession?.id != session.id {
             try await prepare(session: session)
         }
 
         currentSession = session
-        webRTCSession.connect()
+        if let signaling {
+            try await webRTCSession.performSignaling(session: session, signaling: signaling)
+        } else {
+            webRTCSession.connect()
+        }
         audioCoordinator.activate()
         videoRenderer.markStreamingActive()
     }

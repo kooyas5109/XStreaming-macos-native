@@ -43,13 +43,28 @@ func streamingTokenResponseDecodesLegacyGsTokenField() throws {
         {
           "gsToken": "stream-token",
           "tokenType": "JWT",
-          "durationInSeconds": 3600
+          "durationInSeconds": 3600,
+          "offeringSettings": {
+            "regions": [
+              {
+                "name": "fallback",
+                "baseUri": "https://fallback.example.com",
+                "isDefault": false
+              },
+              {
+                "name": "default",
+                "baseUri": "https://default.example.com",
+                "isDefault": true
+              }
+            ]
+          }
         }
         """.utf8
     )
 
     let decoded = try JSONDecoder().decode(StreamingTokenResponse.self, from: data)
     #expect(decoded.token == "stream-token")
+    #expect(decoded.defaultBaseURI == "https://default.example.com")
 }
 
 @Test

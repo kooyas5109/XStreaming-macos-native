@@ -11,7 +11,9 @@ func inMemoryTokenStoreRoundTripsTokens() throws {
         webToken: "web-token",
         userHash: "user-hash",
         xHomeStreamingToken: "xhome-token",
-        xCloudStreamingToken: "xcloud-token"
+        xHomeBaseURI: "https://xhome.example.com",
+        xCloudStreamingToken: "xcloud-token",
+        xCloudBaseURI: "https://xcloud.example.com"
     )
 
     try store.save(tokens)

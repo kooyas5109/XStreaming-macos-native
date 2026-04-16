@@ -57,7 +57,7 @@ public struct AppEnvironment: Sendable {
     @MainActor
     public static func make(mode: AuthProviderMode) -> AppEnvironment {
         let streamingEngine = NativeStreamingEngine.preview()
-        let repository = PreviewStreamingRepository()
+        let repository: StreamingRepository
         let authRepository: DefaultAuthRepository
         let tokenStore: TokenStoreProtocol
 
@@ -65,9 +65,11 @@ public struct AppEnvironment: Sendable {
         case .preview:
             authRepository = DefaultAuthRepository(provider: PreviewXboxAuthProvider())
             tokenStore = InMemoryTokenStore()
+            repository = PreviewStreamingRepository()
         case .live:
             authRepository = DefaultAuthRepository(provider: LiveXboxAuthProvider())
             tokenStore = KeychainTokenStore()
+            repository = LiveStreamingRepository(tokenStore: tokenStore)
         }
 
         return AppEnvironment(
@@ -87,8 +89,8 @@ public struct AppEnvironment: Sendable {
                 engine: streamingEngine,
                 monitor: StreamingSessionMonitor(
                     repository: repository,
-                    maxAttempts: 3,
-                    pollIntervalNanoseconds: 1_000_000
+                    maxAttempts: mode == .live ? 30 : 3,
+                    pollIntervalNanoseconds: mode == .live ? 2_000_000_000 : 1_000_000
                 )
             ),
             streamingEngine: streamingEngine

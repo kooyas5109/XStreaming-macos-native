@@ -150,10 +150,34 @@ struct XSTSAuthorizeResponse: Decodable, Equatable, Sendable {
 }
 
 struct StreamingTokenResponse: Decodable, Equatable, Sendable {
+    struct OfferingSettings: Decodable, Equatable, Sendable {
+        struct Region: Decodable, Equatable, Sendable {
+            let name: String?
+            let baseURI: String?
+            let isDefault: Bool?
+
+            enum CodingKeys: String, CodingKey {
+                case name
+                case baseURI = "baseUri"
+                case isDefault
+            }
+        }
+
+        let regions: [Region]?
+    }
+
     let token: String
+    let offeringSettings: OfferingSettings?
 
     enum CodingKeys: String, CodingKey {
         case token = "gsToken"
+        case offeringSettings
+    }
+
+    var defaultBaseURI: String? {
+        let regions = offeringSettings?.regions ?? []
+        return regions.first(where: { $0.isDefault == true })?.baseURI
+            ?? regions.first?.baseURI
     }
 }
 

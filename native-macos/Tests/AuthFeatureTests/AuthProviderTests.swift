@@ -110,7 +110,16 @@ func liveProviderPollsUntilDeviceCodeCompletes() async throws {
             statusCode: 200,
             body: """
             {
-              "gsToken": "xhome-stream-token"
+              "gsToken": "xhome-stream-token",
+              "offeringSettings": {
+                "regions": [
+                  {
+                    "name": "home-default",
+                    "baseUri": "https://home.example.com",
+                    "isDefault": true
+                  }
+                ]
+              }
             }
             """
         ),
@@ -126,7 +135,16 @@ func liveProviderPollsUntilDeviceCodeCompletes() async throws {
             statusCode: 200,
             body: """
             {
-              "gsToken": "xcloud-stream-token"
+              "gsToken": "xcloud-stream-token",
+              "offeringSettings": {
+                "regions": [
+                  {
+                    "name": "cloud-default",
+                    "baseUri": "https://cloud.example.com",
+                    "isDefault": true
+                  }
+                ]
+              }
             }
             """
         )
@@ -144,7 +162,9 @@ func liveProviderPollsUntilDeviceCodeCompletes() async throws {
     #expect(result.tokens.refreshToken == "refresh-token")
     #expect(result.tokens.userHash == "12345")
     #expect(result.tokens.xHomeStreamingToken == "xhome-stream-token")
+    #expect(result.tokens.xHomeBaseURI == "https://home.example.com")
     #expect(result.tokens.xCloudStreamingToken == "xcloud-stream-token")
+    #expect(result.tokens.xCloudBaseURI == "https://cloud.example.com")
     #expect(await session.consumedResponses == 10)
 }
 

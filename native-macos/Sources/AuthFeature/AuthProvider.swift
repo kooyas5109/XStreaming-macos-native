@@ -73,7 +73,9 @@ public struct PreviewXboxAuthProvider: XboxAuthProviding {
             webToken: "native-web-token",
             userHash: "preview-user-hash",
             xHomeStreamingToken: "native-xhome-token",
-            xCloudStreamingToken: "native-xcloud-token"
+            xHomeBaseURI: "https://xhome.gssv-play-prod.xboxlive.com",
+            xCloudStreamingToken: "native-xcloud-token",
+            xCloudBaseURI: "https://xgpuweb.gssv-play-prod.xboxlive.com"
         )
         return AuthSignInResult(authState: state, tokens: tokens)
     }
@@ -175,7 +177,9 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             webToken: webToken.token,
             userHash: userHash,
             xHomeStreamingToken: xHomeToken.token,
-            xCloudStreamingToken: xCloudToken?.token
+            xHomeBaseURI: xHomeToken.defaultBaseURI,
+            xCloudStreamingToken: xCloudToken?.token,
+            xCloudBaseURI: xCloudToken?.defaultBaseURI
         )
         return AuthSignInResult(authState: state, tokens: tokens)
     }

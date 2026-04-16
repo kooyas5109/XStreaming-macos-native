@@ -11,6 +11,17 @@ public struct StoredTokens: Codable, Equatable, Sendable {
     public let xCloudStreamingToken: String?
     public let xCloudBaseURI: String?
 
+    enum CodingKeys: String, CodingKey {
+        case authToken
+        case refreshToken
+        case webToken
+        case userHash
+        case xHomeStreamingToken
+        case xHomeBaseURI
+        case xCloudStreamingToken
+        case xCloudBaseURI
+    }
+
     public init(
         authToken: String? = nil,
         refreshToken: String? = nil,
@@ -29,6 +40,18 @@ public struct StoredTokens: Codable, Equatable, Sendable {
         self.xHomeBaseURI = xHomeBaseURI
         self.xCloudStreamingToken = xCloudStreamingToken
         self.xCloudBaseURI = xCloudBaseURI
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        authToken = try container.decodeIfPresent(String.self, forKey: .authToken)
+        refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshToken)
+        webToken = try container.decodeIfPresent(String.self, forKey: .webToken)
+        userHash = try container.decodeIfPresent(String.self, forKey: .userHash)
+        xHomeStreamingToken = try container.decodeIfPresent(String.self, forKey: .xHomeStreamingToken)
+        xHomeBaseURI = try container.decodeIfPresent(String.self, forKey: .xHomeBaseURI)
+        xCloudStreamingToken = try container.decodeIfPresent(String.self, forKey: .xCloudStreamingToken)
+        xCloudBaseURI = try container.decodeIfPresent(String.self, forKey: .xCloudBaseURI)
     }
 }
 

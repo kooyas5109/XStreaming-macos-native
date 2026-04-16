@@ -105,3 +105,29 @@ func profileResponseDecodesLegacySettingsPayload() throws {
     #expect(profile.gamerpicURL?.absoluteString == "https://example.com/pic.png")
     #expect(profile.gamerscore == "12345")
 }
+
+@Test
+func profileResponseToleratesMissingAndNullSettings() throws {
+    let data = Data(
+        """
+        {
+          "profileUsers": [
+            {
+              "settings": [
+                { "id": "GameDisplayName", "value": "Display User" },
+                { "id": "GameDisplayPicRaw", "value": null },
+                { "id": "Gamerscore", "value": "987" }
+              ]
+            },
+            {}
+          ]
+        }
+        """.utf8
+    )
+
+    let decoded = try JSONDecoder().decode(ProfileSettingsResponse.self, from: data)
+    let profile = decoded.asUserProfile()
+    #expect(profile.gamertag == "Display User")
+    #expect(profile.gamerpicURL == nil)
+    #expect(profile.gamerscore == "987")
+}

@@ -185,16 +185,16 @@ struct ProfileSettingsResponse: Decodable, Equatable, Sendable {
     struct ProfileUser: Decodable, Equatable, Sendable {
         struct Setting: Decodable, Equatable, Sendable {
             let id: String
-            let value: String
+            let value: String?
         }
 
-        let settings: [Setting]
+        let settings: [Setting]?
     }
 
-    let profileUsers: [ProfileUser]
+    let profileUsers: [ProfileUser]?
 
     func asUserProfile() -> UserProfile {
-        let settings = profileUsers.first?.settings ?? []
+        let settings = profileUsers?.first?.settings ?? []
         let gamertag = settings.first(where: { $0.id == "Gamertag" })?.value
             ?? settings.first(where: { $0.id == "GameDisplayName" })?.value
             ?? ""

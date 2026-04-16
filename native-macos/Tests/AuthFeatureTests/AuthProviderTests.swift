@@ -204,6 +204,36 @@ func liveProviderRestoresSessionWithStoredProfileTokens() async throws {
     #expect(await session.consumedResponses == 1)
 }
 
+@Test
+func liveProviderRestoresSessionWhenStoredProfileCannotDecode() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "error": "profile_unavailable"
+            }
+            """
+        )
+    ])
+
+    let provider = LiveXboxAuthProvider(
+        httpClient: HTTPClient(session: session)
+    )
+    let state = try await provider.restoreSession(
+        from: StoredTokens(
+            authToken: "access-token",
+            webToken: "web-token",
+            userHash: "12345"
+        )
+    )
+
+    #expect(state.isSignedIn == true)
+    #expect(state.userProfile == nil)
+    #expect(state.statusMessage == "Restored live session from stored tokens. Profile refresh is unavailable.")
+    #expect(await session.consumedResponses == 1)
+}
+
 private actor ResponseCounter {
     private(set) var value = 0
 

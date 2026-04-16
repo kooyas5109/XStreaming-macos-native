@@ -114,12 +114,14 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             return .signedOut
         }
 
-        let profile = try await restoreUserProfile(from: tokens)
+        let profile = try? await restoreUserProfile(from: tokens)
         return AuthState(
             isSignedIn: true,
             isAuthenticating: false,
             userProfile: profile,
-            statusMessage: "Restored live session from stored tokens."
+            statusMessage: profile == nil
+                ? "Restored live session from stored tokens. Profile refresh is unavailable."
+                : "Restored live session from stored tokens."
         )
     }
 
@@ -275,11 +277,17 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
         let request = try RequestBuilder.make(baseURL: profileBaseURL, endpoint: endpoint)
         let response = try await httpClient.send(request)
         let payload = try httpClient.decode(ProfileSettingsResponse.self, from: response)
-        return payload.asUserProfile()
+        let profile = payload.asUserProfile()
+        guard profile.gamertag.isEmpty == false || profile.gamerscore.isEmpty == false || profile.gamerpicURL != nil else {
+            throw LiveAuthProviderError.profileUnavailable
+        }
+
+        return profile
     }
 }
 
 public enum LiveAuthProviderError: Error, Equatable {
     case oauth(String)
+    case profileUnavailable
     case timedOut
 }

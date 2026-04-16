@@ -29,6 +29,7 @@ public protocol StreamingEngineProtocol: Sendable {
     var capabilities: StreamingEngineCapabilities { get }
     func prepare(session: StreamingSession) async throws
     func start(session: StreamingSession, signaling: StreamingSignalingClient?) async throws
+    func sendControlEvent(_ event: StreamingControlEvent) async
     func stop() async
 }
 
@@ -36,6 +37,8 @@ public extension StreamingEngineProtocol {
     func start(session: StreamingSession) async throws {
         try await start(session: session, signaling: nil)
     }
+
+    func sendControlEvent(_ event: StreamingControlEvent) async {}
 }
 
 public protocol StreamingSignalingClient: Sendable {
@@ -58,6 +61,8 @@ public struct PreviewStreamingEngine: StreamingEngineProtocol {
     public func prepare(session: StreamingSession) async throws {}
 
     public func start(session: StreamingSession, signaling: StreamingSignalingClient?) async throws {}
+
+    public func sendControlEvent(_ event: StreamingControlEvent) async {}
 
     public func stop() async {}
 }

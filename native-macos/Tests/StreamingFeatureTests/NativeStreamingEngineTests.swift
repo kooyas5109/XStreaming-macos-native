@@ -89,6 +89,22 @@ func nativeEngineRunsSignalingBeforeActivatingPipeline() async throws {
     #expect(engine.videoRenderer.statusText == "Native stream active")
 }
 
+@MainActor
+@Test
+func nativeEngineQueuesControlEventsForTransportLayer() async throws {
+    let engine = NativeStreamingEngine.preview()
+
+    await engine.sendControlEvent(.button(.nexus, .began))
+    await engine.sendControlEvent(.button(.nexus, .ended))
+    await engine.sendControlEvent(.text("hello xbox"))
+
+    #expect(engine.webRTCSession.sentControlEvents == [
+        .button(.nexus, .began),
+        .button(.nexus, .ended),
+        .text("hello xbox")
+    ])
+}
+
 private final class TestSignalingClient: StreamingSignalingClient, @unchecked Sendable {
     private(set) var sdpCalls: [(sessionID: String, offerSDP: String)] = []
     private(set) var iceCalls: [(sessionID: String, candidate: String)] = []

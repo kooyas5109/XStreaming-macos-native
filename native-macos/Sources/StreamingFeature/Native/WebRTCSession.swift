@@ -18,6 +18,7 @@ public final class WebRTCSession: @unchecked Sendable {
     public private(set) var remoteAnswerSDP: String?
     public private(set) var localICECandidate: String?
     public private(set) var remoteICECandidates: [StreamingICECandidate] = []
+    public private(set) var sentControlEvents: [StreamingControlEvent] = []
 
     public init(
         id: String = UUID().uuidString,
@@ -61,6 +62,10 @@ public final class WebRTCSession: @unchecked Sendable {
 
     public func sendRumble(intensity: Double) {
         lastRumbleIntensity = intensity
+    }
+
+    public func sendControlEvent(_ event: StreamingControlEvent) {
+        sentControlEvents.append(event)
     }
 
     // Temporary handshake payload until a native WebRTC stack owns offer creation.

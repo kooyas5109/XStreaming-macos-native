@@ -297,7 +297,9 @@ public struct StreamContainerView: View {
                     }
 
                     Button(microphoneOpen ? strings.closeMicAction : strings.openMicAction) {
-                        microphoneOpen.toggle()
+                        Task {
+                            await handleToggleMicrophone()
+                        }
                     }
 
                     Button(strings.fullscreenAction) {
@@ -310,11 +312,15 @@ public struct StreamContainerView: View {
                         }
 
                         Button(strings.pressNexusAction) {
-                            handlePressNexus()
+                            Task {
+                                await handlePressNexus()
+                            }
                         }
 
                         Button(strings.longPressNexusAction) {
-                            handleLongPressNexus()
+                            Task {
+                                await handleLongPressNexus()
+                            }
                         }
                     }
 
@@ -659,11 +665,11 @@ public struct StreamContainerView: View {
                 togglePerformance: { showPerformancePanel.toggle() },
                 toggleDisplay: { showDisplayPanel.toggle() },
                 toggleAudio: { showAudioPanel.toggle() },
-                toggleMicrophone: { microphoneOpen.toggle() },
+                toggleMicrophone: { Task { await handleToggleMicrophone() } },
                 toggleFullscreen: { handleToggleFullscreen() },
                 sendText: { handleSendText() },
-                pressNexus: { handlePressNexus() },
-                longPressNexus: { handleLongPressNexus() },
+                pressNexus: { Task { await handlePressNexus() } },
+                longPressNexus: { Task { await handleLongPressNexus() } },
                 disconnect: { handleDisconnect() },
                 disconnectAndPowerOff: { handleDisconnectAndPowerOff() }
             )
@@ -694,12 +700,32 @@ public struct StreamContainerView: View {
         showTextComposer = true
     }
 
-    private func handlePressNexus() {
+    @MainActor
+    private func handleToggleMicrophone() async {
+        microphoneOpen.toggle()
+        await engine.sendControlEvent(.microphone(active: microphoneOpen))
+    }
+
+    @MainActor
+    private func handlePressNexus() async {
+        await sendButton(.nexus, durationNanoseconds: 150_000_000)
         infoMessage = ShellStrings(language: language).nexusPressSuccess
     }
 
-    private func handleLongPressNexus() {
+    @MainActor
+    private func handleLongPressNexus() async {
+        await sendButton(.nexus, durationNanoseconds: 1_000_000_000)
         infoMessage = ShellStrings(language: language).nexusLongPressSuccess
+    }
+
+    @MainActor
+    private func sendButton(
+        _ button: StreamingControlButton,
+        durationNanoseconds: UInt64
+    ) async {
+        await engine.sendControlEvent(.button(button, .began))
+        try? await Task.sleep(nanoseconds: durationNanoseconds)
+        await engine.sendControlEvent(.button(button, .ended))
     }
 
     private func handleDisconnect() {
@@ -714,6 +740,9 @@ public struct StreamContainerView: View {
     private func commitOutgoingText() {
         let trimmed = outgoingText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty == false else { return }
+        Task {
+            await engine.sendControlEvent(.text(trimmed))
+        }
         infoMessage = ShellStrings(language: language).sendTextSuccess
         outgoingText = ""
         showTextComposer = false

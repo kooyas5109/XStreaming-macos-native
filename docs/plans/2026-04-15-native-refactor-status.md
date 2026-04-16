@@ -33,6 +33,7 @@ These areas are implemented, committed, and verified by tests:
 - Live xhome session connect now exchanges the Microsoft refresh token for a console transfer token and posts it to `/connect`
 - Live streaming repository can exchange SDP offers and ICE candidates through the Xbox `/sdp` and `/ice` signaling endpoints
 - Native streaming engine now receives the service-level signaling client and performs a testable SDP/ICE exchange before activating the local preview pipeline
+- Stream controls now produce typed control events for Nexus, text, microphone, and mapped digital game actions
 
 ## Implemented But Still Demo-Oriented
 
@@ -41,6 +42,7 @@ These areas exist and are useful for architecture validation, but should not be 
 - Settings persistence for language, fullscreen, performance style, display options, bitrate, codec, vibration, native mouse and keyboard, and mouse sensitivity
 - Stream page controls for display, audio, microphone, fullscreen, performance visibility, send text, Nexus actions, and disconnect actions
 - Native streaming surface preview and stream session state transitions
+- Native control event queue for stream actions and digital button mapping
 - Cloud catalog preview data
 
 Important constraint:
@@ -67,10 +69,12 @@ These areas have structure in place, but the real product path is not fully conn
   - Live xhome `/connect` transfer-token handshake is wired after `ReadyToConnect`
   - Live `/sdp` and `/ice` signaling request/response seams are wired and tested
   - Native engine now routes startup through the SDP/ICE signaling seam, but still uses placeholder local SDP/ICE generation instead of a production WebRTC media stack
+  - Native engine can accept typed control events, but does not yet serialize them onto a live WebRTC input data channel
   - Full production streaming transport is not fully connected
 - Input support
   - Keyboard mapping, focus coordination, and controller monitoring exist
-  - Real gameplay input pipeline is not fully wired through the live stream path
+  - Digital game actions can be translated into typed stream control events
+  - Real gameplay input serialization and delivery over the live stream path is not fully wired
 - Console and catalog services
   - Console preview, cache semantics, and live xccs inventory are wired
   - Console power/text command request shapes exist, but need live interaction verification

@@ -73,6 +73,14 @@ public final class StreamingService: @unchecked Sendable {
         try await repository.sendKeepAlive(sessionID: sessionID)
     }
 
+    public func exchangeSDP(sessionID: String, offerSDP: String) async throws -> StreamingSDPAnswer {
+        try await repository.exchangeSDP(sessionID: sessionID, offerSDP: offerSDP)
+    }
+
+    public func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate] {
+        try await repository.exchangeICE(sessionID: sessionID, candidate: candidate)
+    }
+
     public func stopStreaming(sessionID: String) async throws -> StreamingStateMachine.State {
         try await repository.stopSession(sessionID: sessionID)
         await engine.stop()

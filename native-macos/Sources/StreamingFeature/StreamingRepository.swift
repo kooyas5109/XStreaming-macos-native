@@ -7,8 +7,39 @@ public protocol StreamingRepository: Sendable {
     func createSession(kind: StreamingKind, targetID: String) async throws -> StreamingSession
     func refreshSession(sessionID: String) async throws -> StreamingSession
     func connectSession(sessionID: String) async throws -> StreamingSession
+    func exchangeSDP(sessionID: String, offerSDP: String) async throws -> StreamingSDPAnswer
+    func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate]
     func sendKeepAlive(sessionID: String) async throws
     func stopSession(sessionID: String) async throws
+}
+
+public struct StreamingSDPAnswer: Equatable, Sendable {
+    public let messageType: String
+    public let sdp: String
+
+    public init(messageType: String, sdp: String) {
+        self.messageType = messageType
+        self.sdp = sdp
+    }
+}
+
+public struct StreamingICECandidate: Equatable, Sendable {
+    public let messageType: String
+    public let candidate: String
+    public let sdpMid: String?
+    public let sdpMLineIndex: String?
+
+    public init(
+        messageType: String,
+        candidate: String,
+        sdpMid: String? = nil,
+        sdpMLineIndex: String? = nil
+    ) {
+        self.messageType = messageType
+        self.candidate = candidate
+        self.sdpMid = sdpMid
+        self.sdpMLineIndex = sdpMLineIndex
+    }
 }
 
 public final class PreviewStreamingRepository: @unchecked Sendable, StreamingRepository {
@@ -63,6 +94,21 @@ public final class PreviewStreamingRepository: @unchecked Sendable, StreamingRep
         )
     }
 
+    public func exchangeSDP(sessionID: String, offerSDP: String) async throws -> StreamingSDPAnswer {
+        StreamingSDPAnswer(messageType: "answer", sdp: "v=0\r\npreview-answer")
+    }
+
+    public func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate] {
+        [
+            StreamingICECandidate(
+                messageType: "iceCandidate",
+                candidate: "a=candidate:1 1 UDP 1 127.0.0.1 9002 typ host",
+                sdpMid: "0",
+                sdpMLineIndex: "0"
+            )
+        ]
+    }
+
     public func sendKeepAlive(sessionID: String) async throws {}
 
     public func stopSession(sessionID: String) async throws {}
@@ -73,6 +119,7 @@ public enum LiveStreamingRepositoryError: Error, Equatable {
     case missingRefreshToken
     case missingSessionContext(String)
     case invalidBaseURI(String)
+    case exchangeResponseUnavailable(String)
 }
 
 public final class LiveStreamingRepository: @unchecked Sendable, StreamingRepository {
@@ -80,17 +127,23 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
     private let tokenStore: TokenStoreProtocol
     private let defaultHomeBaseURI: String
     private let defaultCloudBaseURI: String
+    private let maxExchangeAttempts: Int
+    private let exchangePollIntervalNanoseconds: UInt64
 
     public init(
         httpClient: HTTPClient = HTTPClient(),
         tokenStore: TokenStoreProtocol,
         defaultHomeBaseURI: String = "https://xhome.gssv-play-prod.xboxlive.com",
-        defaultCloudBaseURI: String = "https://xgpuweb.gssv-play-prod.xboxlive.com"
+        defaultCloudBaseURI: String = "https://xgpuweb.gssv-play-prod.xboxlive.com",
+        maxExchangeAttempts: Int = 6,
+        exchangePollIntervalNanoseconds: UInt64 = 1_000_000_000
     ) {
         self.httpClient = httpClient
         self.tokenStore = tokenStore
         self.defaultHomeBaseURI = defaultHomeBaseURI
         self.defaultCloudBaseURI = defaultCloudBaseURI
+        self.maxExchangeAttempts = maxExchangeAttempts
+        self.exchangePollIntervalNanoseconds = exchangePollIntervalNanoseconds
     }
 
     public func createSession(kind: StreamingKind, targetID: String) async throws -> StreamingSession {
@@ -160,6 +213,50 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
         return try await refreshSession(sessionID: sessionID)
     }
 
+    public func exchangeSDP(sessionID: String, offerSDP: String) async throws -> StreamingSDPAnswer {
+        let context = try requireSessionContext(sessionID)
+        let postRequest = try RequestBuilder.make(
+            baseURL: context.baseURL,
+            endpoint: try StreamingEndpoints.sdpOffer(
+                kind: context.kind,
+                sessionID: sessionID,
+                offerSDP: offerSDP
+            ),
+            token: context.streamingToken
+        )
+        _ = try await httpClient.send(postRequest)
+
+        return try await pollExchangeResponse(
+            sessionID: sessionID,
+            label: "sdp",
+            endpoint: StreamingEndpoints.sdp(kind: context.kind, sessionID: sessionID),
+            context: context,
+            decode: decodeSDPAnswer
+        )
+    }
+
+    public func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate] {
+        let context = try requireSessionContext(sessionID)
+        let postRequest = try RequestBuilder.make(
+            baseURL: context.baseURL,
+            endpoint: try StreamingEndpoints.iceCandidate(
+                kind: context.kind,
+                sessionID: sessionID,
+                candidate: candidate
+            ),
+            token: context.streamingToken
+        )
+        _ = try await httpClient.send(postRequest)
+
+        return try await pollExchangeResponse(
+            sessionID: sessionID,
+            label: "ice",
+            endpoint: StreamingEndpoints.ice(kind: context.kind, sessionID: sessionID),
+            context: context,
+            decode: decodeICECandidates
+        )
+    }
+
     public func sendKeepAlive(sessionID: String) async throws {
         guard let context = sessionContexts[sessionID] else { return }
         let request = try RequestBuilder.make(
@@ -181,6 +278,13 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
     }
 
     private var sessionContexts: [String: StreamingSessionContext] = [:]
+
+    private func requireSessionContext(_ sessionID: String) throws -> StreamingSessionContext {
+        guard let context = sessionContexts[sessionID] else {
+            throw LiveStreamingRepositoryError.missingSessionContext(sessionID)
+        }
+        return context
+    }
 
     private func loadContext(kind: StreamingKind) throws -> StreamingAuthContext {
         let tokens = try tokenStore.load()
@@ -225,6 +329,55 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
         let payload = try httpClient.decode(StreamingTransferTokenResponse.self, from: response)
         return payload.livePassportToken
     }
+
+    private func pollExchangeResponse<Response>(
+        sessionID: String,
+        label: String,
+        endpoint: BasicEndpoint,
+        context: StreamingSessionContext,
+        decode: (String) throws -> Response
+    ) async throws -> Response {
+        var attempts = 0
+
+        while attempts < maxExchangeAttempts {
+            let request = try RequestBuilder.make(
+                baseURL: context.baseURL,
+                endpoint: endpoint,
+                token: context.streamingToken
+            )
+            let response = try await httpClient.send(request)
+
+            if response.data.isEmpty == false,
+               let payload = try? httpClient.decode(StreamingExchangeResponse.self, from: response),
+               let exchangeResponse = payload.exchangeResponse,
+               exchangeResponse.isEmpty == false {
+                return try decode(exchangeResponse)
+            }
+
+            attempts += 1
+            if attempts < maxExchangeAttempts {
+                try await Task.sleep(nanoseconds: exchangePollIntervalNanoseconds)
+            }
+        }
+
+        throw LiveStreamingRepositoryError.exchangeResponseUnavailable("\(label):\(sessionID)")
+    }
+
+    private func decodeSDPAnswer(_ value: String) throws -> StreamingSDPAnswer {
+        let payload = try JSONDecoder().decode(StreamingSDPAnswerPayload.self, from: Data(value.utf8))
+        return payload.asDomain()
+    }
+
+    private func decodeICECandidates(_ value: String) throws -> [StreamingICECandidate] {
+        if let candidates = try? JSONDecoder().decode([StreamingICECandidatePayload].self, from: Data(value.utf8)) {
+            return candidates.map { $0.asDomain() }
+        }
+
+        let object = try JSONDecoder().decode([String: StreamingICECandidatePayload].self, from: Data(value.utf8))
+        return object
+            .sorted { $0.key < $1.key }
+            .map { $0.value.asDomain() }
+    }
 }
 
 private struct StreamingAuthContext {
@@ -266,6 +419,32 @@ private enum StreamingEndpoints {
         let body = try JSONEncoder().encode(StreamingConnectRequest(userToken: transferToken))
         return BasicEndpoint(
             path: "/v5/sessions/\(kind.pathComponent)/\(sessionID)/connect",
+            method: .post,
+            body: body
+        )
+    }
+
+    static func sdp(kind: StreamingKind, sessionID: String) -> BasicEndpoint {
+        BasicEndpoint(path: "/v5/sessions/\(kind.pathComponent)/\(sessionID)/sdp")
+    }
+
+    static func sdpOffer(kind: StreamingKind, sessionID: String, offerSDP: String) throws -> BasicEndpoint {
+        let body = try JSONEncoder().encode(StreamingSDPOfferRequest(sdp: offerSDP))
+        return BasicEndpoint(
+            path: "/v5/sessions/\(kind.pathComponent)/\(sessionID)/sdp",
+            method: .post,
+            body: body
+        )
+    }
+
+    static func ice(kind: StreamingKind, sessionID: String) -> BasicEndpoint {
+        BasicEndpoint(path: "/v5/sessions/\(kind.pathComponent)/\(sessionID)/ice")
+    }
+
+    static func iceCandidate(kind: StreamingKind, sessionID: String, candidate: String) throws -> BasicEndpoint {
+        let body = try JSONEncoder().encode(StreamingICECandidateRequest(candidate: candidate))
+        return BasicEndpoint(
+            path: "/v5/sessions/\(kind.pathComponent)/\(sessionID)/ice",
             method: .post,
             body: body
         )
@@ -360,11 +539,90 @@ private struct StreamingConnectRequest: Encodable {
     let userToken: String
 }
 
+private struct StreamingSDPOfferRequest: Encodable {
+    struct Configuration: Encodable {
+        struct ChatConfiguration: Encodable {
+            struct Format: Encodable {
+                let codec = "opus"
+                let container = "webm"
+            }
+
+            let bytesPerSample = 2
+            let expectedClipDurationMs = 20
+            let format = Format()
+            let numChannels = 1
+            let sampleFrequencyHz = 24000
+        }
+
+        struct VersionRange: Encodable {
+            let minVersion: Int
+            let maxVersion: Int
+        }
+
+        let chatConfiguration = ChatConfiguration()
+        let chat = VersionRange(minVersion: 1, maxVersion: 1)
+        let control = VersionRange(minVersion: 1, maxVersion: 3)
+        let input = VersionRange(minVersion: 1, maxVersion: 8)
+        let message = VersionRange(minVersion: 1, maxVersion: 1)
+    }
+
+    let messageType = "offer"
+    let sdp: String
+    let configuration = Configuration()
+}
+
+private struct StreamingICECandidateRequest: Encodable {
+    let messageType = "iceCandidate"
+    let candidate: String
+}
+
 private struct StreamingTransferTokenResponse: Decodable {
     let livePassportToken: String
 
     enum CodingKeys: String, CodingKey {
         case livePassportToken = "lpt"
+    }
+}
+
+private struct StreamingExchangeResponse: Decodable {
+    let exchangeResponse: String?
+}
+
+private struct StreamingSDPAnswerPayload: Decodable {
+    let messageType: String?
+    let sdp: String
+
+    func asDomain() -> StreamingSDPAnswer {
+        StreamingSDPAnswer(messageType: messageType ?? "answer", sdp: sdp)
+    }
+}
+
+private struct StreamingICECandidatePayload: Decodable {
+    let messageType: String?
+    let candidate: String
+    let sdpMid: String?
+    let sdpMLineIndex: FlexibleString?
+
+    func asDomain() -> StreamingICECandidate {
+        StreamingICECandidate(
+            messageType: messageType ?? "iceCandidate",
+            candidate: candidate,
+            sdpMid: sdpMid,
+            sdpMLineIndex: sdpMLineIndex?.value
+        )
+    }
+}
+
+private struct FlexibleString: Decodable {
+    let value: String
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let string = try? container.decode(String.self) {
+            value = string
+        } else {
+            value = String(try container.decode(Int.self))
+        }
     }
 }
 

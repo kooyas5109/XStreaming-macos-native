@@ -31,6 +31,7 @@ These areas are implemented, committed, and verified by tests:
 - Live console inventory can fetch real Xbox devices through the xccs smartglass API
 - Live xhome session creation and state polling are wired into the native streaming repository
 - Live xhome session connect now exchanges the Microsoft refresh token for a console transfer token and posts it to `/connect`
+- Live streaming repository can exchange SDP offers and ICE candidates through the Xbox `/sdp` and `/ice` signaling endpoints
 
 ## Implemented But Still Demo-Oriented
 
@@ -63,6 +64,7 @@ These areas have structure in place, but the real product path is not fully conn
   - Preview/native shell works
   - Live xhome `/play`, `/state`, `/keepalive`, and `/delete` session calls are wired
   - Live xhome `/connect` transfer-token handshake is wired after `ReadyToConnect`
+  - Live `/sdp` and `/ice` signaling request/response seams are wired and tested
   - Full production streaming transport is not fully connected
 - Input support
   - Keyboard mapping, focus coordination, and controller monitoring exist
@@ -79,7 +81,7 @@ These areas should still be treated as open:
 - Proactive Xbox token refresh before expiry during long-running sessions
 - Live console power/text operations verified against a real device
 - Real xCloud catalog and session creation flow over native repositories
-- Real SDP and ICE exchange driving a production-capable streaming session
+- Real SDP and ICE exchange connected to a production-capable native WebRTC engine
 - Real controller, keyboard, mouse, rumble, and text input injection during live streaming
 - Theme system, background keepalive, FSR, and other non-core settings parity
 - Packaging, signing, entitlements, and notarization readiness

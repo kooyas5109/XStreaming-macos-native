@@ -103,12 +103,37 @@ func streamingServiceStopsRemoteSessionAndEngine() async throws {
     #expect(await engine.stopCalls == 1)
 }
 
+@Test
+func streamingServiceExposesSignalingExchangeOperations() async throws {
+    let repository = TestStreamingRepository(
+        createdSession: StreamingFixtures.pendingSession,
+        refreshResponses: []
+    )
+    let service = StreamingService(
+        repository: repository,
+        engine: TestStreamingEngine()
+    )
+
+    let answer = try await service.exchangeSDP(sessionID: "stream-session-1", offerSDP: "v=0\r\nlocal-offer")
+    let candidates = try await service.exchangeICE(
+        sessionID: "stream-session-1",
+        candidate: "a=candidate:1 1 UDP 1 10.0.0.1 9002 typ host"
+    )
+
+    #expect(answer.sdp == "v=0\r\ntest-answer")
+    #expect(candidates.first?.candidate == "a=candidate:1 1 UDP 1 127.0.0.1 9002 typ host")
+    #expect(await repository.sdpExchangeCalls == ["stream-session-1:v=0\r\nlocal-offer"])
+    #expect(await repository.iceExchangeCalls == ["stream-session-1:a=candidate:1 1 UDP 1 10.0.0.1 9002 typ host"])
+}
+
 private actor TestStreamingRepository: StreamingRepository {
     let createdSession: StreamingSession
     let refreshResponses: [StreamingSession]
     let connectResponse: StreamingSession?
     var refreshIndex = 0
     var connectCalls: [String] = []
+    var sdpExchangeCalls: [String] = []
+    var iceExchangeCalls: [String] = []
     var stopCalls: [String] = []
 
     init(
@@ -156,6 +181,23 @@ private actor TestStreamingRepository: StreamingRepository {
             kind: createdSession.kind,
             state: .started
         )
+    }
+
+    func exchangeSDP(sessionID: String, offerSDP: String) async throws -> StreamingSDPAnswer {
+        sdpExchangeCalls.append("\(sessionID):\(offerSDP)")
+        return StreamingSDPAnswer(messageType: "answer", sdp: "v=0\r\ntest-answer")
+    }
+
+    func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate] {
+        iceExchangeCalls.append("\(sessionID):\(candidate)")
+        return [
+            StreamingICECandidate(
+                messageType: "iceCandidate",
+                candidate: "a=candidate:1 1 UDP 1 127.0.0.1 9002 typ host",
+                sdpMid: "0",
+                sdpMLineIndex: "0"
+            )
+        ]
     }
 
     func sendKeepAlive(sessionID: String) async throws {}

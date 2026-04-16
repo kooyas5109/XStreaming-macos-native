@@ -153,6 +153,118 @@ func liveStreamingRepositoryConnectsReadySessionWithTransferToken() async throws
     #expect(bodies[2].contains("\"userToken\":\"live-passport-transfer-token\""))
 }
 
+@Test
+func liveStreamingRepositoryExchangesSdpOfferForRemoteAnswer() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "sessionPath": "/v5/sessions/home/session-123",
+              "state": "Provisioning"
+            }
+            """
+        ),
+        MockURLSession.Response(statusCode: 200, body: "{}"),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: #"""
+            {
+              "exchangeResponse": "{\"messageType\":\"answer\",\"sdp\":\"v=0\\r\\nremote-answer\"}"
+            }
+            """#
+        )
+    ])
+    let repository = LiveStreamingRepository(
+        httpClient: HTTPClient(session: session),
+        tokenStore: InMemoryTokenStore(
+            initialValue: StoredTokens(
+                xHomeStreamingToken: "xhome-token",
+                xHomeBaseURI: "https://home.example.com"
+            )
+        ),
+        exchangePollIntervalNanoseconds: 1_000
+    )
+
+    let created = try await repository.createSession(kind: .home, targetID: "console-1")
+    let answer = try await repository.exchangeSDP(sessionID: created.id, offerSDP: "v=0\r\nlocal-offer")
+
+    #expect(answer.messageType == "answer")
+    #expect(answer.sdp == "v=0\r\nremote-answer")
+    #expect(await session.requestMethods == ["POST", "POST", "GET"])
+    #expect(await session.requestURLs == [
+        "https://home.example.com/v5/sessions/home/play",
+        "https://home.example.com/v5/sessions/home/session-123/sdp",
+        "https://home.example.com/v5/sessions/home/session-123/sdp"
+    ])
+    let bodies = await session.requestBodies
+    #expect(bodies[1].contains("\"messageType\":\"offer\""))
+    #expect(bodies[1].contains("\"sdp\":\"v=0\\r\\nlocal-offer\""))
+    #expect(bodies[1].contains("\"control\""))
+    #expect(bodies[1].contains("\"minVersion\":1"))
+    #expect(bodies[1].contains("\"maxVersion\":3"))
+    #expect(bodies[1].contains("\"input\""))
+    #expect(bodies[1].contains("\"maxVersion\":8"))
+}
+
+@Test
+func liveStreamingRepositoryExchangesIceCandidateForRemoteCandidates() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "sessionPath": "/v5/sessions/home/session-123",
+              "state": "Provisioning"
+            }
+            """
+        ),
+        MockURLSession.Response(statusCode: 200, body: "{}"),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: #"""
+            {
+              "exchangeResponse": "[{\"messageType\":\"iceCandidate\",\"candidate\":\"a=candidate:2 1 UDP 1 10.0.0.2 9002 typ host\",\"sdpMid\":\"0\",\"sdpMLineIndex\":0}]"
+            }
+            """#
+        )
+    ])
+    let repository = LiveStreamingRepository(
+        httpClient: HTTPClient(session: session),
+        tokenStore: InMemoryTokenStore(
+            initialValue: StoredTokens(
+                xHomeStreamingToken: "xhome-token",
+                xHomeBaseURI: "https://home.example.com"
+            )
+        ),
+        exchangePollIntervalNanoseconds: 1_000
+    )
+
+    let created = try await repository.createSession(kind: .home, targetID: "console-1")
+    let candidates = try await repository.exchangeICE(
+        sessionID: created.id,
+        candidate: "a=candidate:1 1 UDP 1 10.0.0.1 9002 typ host"
+    )
+
+    #expect(candidates == [
+        StreamingICECandidate(
+            messageType: "iceCandidate",
+            candidate: "a=candidate:2 1 UDP 1 10.0.0.2 9002 typ host",
+            sdpMid: "0",
+            sdpMLineIndex: "0"
+        )
+    ])
+    #expect(await session.requestMethods == ["POST", "POST", "GET"])
+    #expect(await session.requestURLs == [
+        "https://home.example.com/v5/sessions/home/play",
+        "https://home.example.com/v5/sessions/home/session-123/ice",
+        "https://home.example.com/v5/sessions/home/session-123/ice"
+    ])
+    let bodies = await session.requestBodies
+    #expect(bodies[1].contains("\"messageType\":\"iceCandidate\""))
+    #expect(bodies[1].contains("\"candidate\":\"a=candidate:1 1 UDP 1 10.0.0.1 9002 typ host\""))
+}
+
 private actor RequestCapture {
     private(set) var requestURLs: [String] = []
     private(set) var requestMethods: [String] = []

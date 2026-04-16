@@ -3,7 +3,7 @@ import PersistenceKit
 import SharedDomain
 
 public protocol AuthRepository: Sendable {
-    func restoreSession(from tokens: StoredTokens?) async throws -> AuthState
+    func restoreSession(from tokens: StoredTokens?) async throws -> AuthSignInResult
     func beginInteractiveSignIn() async throws -> DeviceCodeChallenge
     func completeInteractiveSignIn(using challenge: DeviceCodeChallenge) async throws -> AuthSignInResult
     func signOut() async throws
@@ -16,7 +16,7 @@ public struct DefaultAuthRepository: AuthRepository {
         self.provider = provider
     }
 
-    public func restoreSession(from tokens: StoredTokens?) async throws -> AuthState {
+    public func restoreSession(from tokens: StoredTokens?) async throws -> AuthSignInResult {
         try await provider.restoreSession(from: tokens)
     }
 
@@ -40,8 +40,8 @@ public struct PreviewAuthRepository: AuthRepository {
         self.provider = provider
     }
 
-    public func restoreSession(from tokens: StoredTokens?) async throws -> AuthState {
-        state
+    public func restoreSession(from tokens: StoredTokens?) async throws -> AuthSignInResult {
+        AuthSignInResult(authState: state, tokens: tokens ?? StoredTokens())
     }
 
     public func beginInteractiveSignIn() async throws -> DeviceCodeChallenge {

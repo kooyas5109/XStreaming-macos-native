@@ -17,7 +17,7 @@ public enum AuthProviderMode: String, Equatable, Sendable {
 }
 
 public protocol XboxAuthProviding: Sendable {
-    func restoreSession(from tokens: StoredTokens?) async throws -> AuthState
+    func restoreSession(from tokens: StoredTokens?) async throws -> AuthSignInResult
     func requestDeviceCode() async throws -> DeviceCodeChallenge
     func completeDeviceCode(challenge: DeviceCodeChallenge) async throws -> AuthSignInResult
 }
@@ -25,12 +25,12 @@ public protocol XboxAuthProviding: Sendable {
 public struct PreviewXboxAuthProvider: XboxAuthProviding {
     public init() {}
 
-    public func restoreSession(from tokens: StoredTokens?) async throws -> AuthState {
-        guard let tokens, let authToken = tokens.authToken, authToken.isEmpty == false else {
-            return .signedOut
+    public func restoreSession(from tokens: StoredTokens?) async throws -> AuthSignInResult {
+        guard let tokens, tokens.hasRestorableLiveSession else {
+            return AuthSignInResult(authState: .signedOut, tokens: StoredTokens())
         }
 
-        return AuthState(
+        let state = AuthState(
             isSignedIn: true,
             isAuthenticating: false,
             userProfile: UserProfile(
@@ -41,6 +41,7 @@ public struct PreviewXboxAuthProvider: XboxAuthProviding {
             ),
             statusMessage: "Restored preview session from stored tokens."
         )
+        return AuthSignInResult(authState: state, tokens: tokens)
     }
 
     public func requestDeviceCode() async throws -> DeviceCodeChallenge {
@@ -109,20 +110,33 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
         self.profileBaseURL = profileBaseURL
     }
 
-    public func restoreSession(from tokens: StoredTokens?) async throws -> AuthState {
+    public func restoreSession(from tokens: StoredTokens?) async throws -> AuthSignInResult {
         guard let tokens, let authToken = tokens.authToken, authToken.isEmpty == false else {
-            return .signedOut
+            return AuthSignInResult(authState: .signedOut, tokens: StoredTokens())
         }
 
         let profile = try? await restoreUserProfile(from: tokens)
-        return AuthState(
+        if let profile {
+            let state = AuthState(
+                isSignedIn: true,
+                isAuthenticating: false,
+                userProfile: profile,
+                statusMessage: "Restored live session from stored tokens."
+            )
+            return AuthSignInResult(authState: state, tokens: tokens)
+        }
+
+        if let refreshed = try? await refreshSession(from: tokens) {
+            return refreshed
+        }
+
+        let state = AuthState(
             isSignedIn: true,
             isAuthenticating: false,
-            userProfile: profile,
-            statusMessage: profile == nil
-                ? "Restored live session from stored tokens. Profile refresh is unavailable."
-                : "Restored live session from stored tokens."
+            userProfile: nil,
+            statusMessage: "Restored live session from stored tokens. Profile refresh is unavailable."
         )
+        return AuthSignInResult(authState: state, tokens: tokens)
     }
 
     public func requestDeviceCode() async throws -> DeviceCodeChallenge {
@@ -227,6 +241,13 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
         return try httpClient.decode(OAuthTokenResponse.self, from: response)
     }
 
+    private func refreshOAuthTokens(refreshToken: String) async throws -> OAuthTokenResponse {
+        let endpoint = AuthEndpoints.refreshToken(clientID: clientID, refreshToken: refreshToken)
+        let request = try RequestBuilder.make(baseURL: deviceCodeBaseURL, endpoint: endpoint)
+        let response = try await httpClient.send(request)
+        return try httpClient.decode(OAuthTokenResponse.self, from: response)
+    }
+
     private func authenticateXbox(accessToken: String) async throws -> XSTSAuthorizeResponse {
         let endpoint = try AuthEndpoints.userAuthenticate(accessToken: accessToken)
         let request = try RequestBuilder.make(baseURL: xboxUserAuthBaseURL, endpoint: endpoint)
@@ -261,6 +282,50 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
         }
     }
 
+    private func refreshSession(from tokens: StoredTokens) async throws -> AuthSignInResult {
+        guard let refreshToken = tokens.refreshToken, refreshToken.isEmpty == false else {
+            throw LiveAuthProviderError.refreshTokenMissing
+        }
+
+        let tokenResponse = try await refreshOAuthTokens(refreshToken: refreshToken)
+        let userAuth = try await authenticateXbox(accessToken: tokenResponse.accessToken)
+        let webToken = try await authorizeXSTS(
+            userToken: userAuth.token,
+            relyingParty: "http://xboxlive.com"
+        )
+        let userHash = webToken.displayClaims.xui.first?.uhs ?? ""
+        let gssvToken = try await authorizeXSTS(
+            userToken: userAuth.token,
+            relyingParty: "http://gssv.xboxlive.com/"
+        )
+        let profile = try? await fetchUserProfile(userToken: webToken.token, userHash: userHash)
+        let xHomeToken = try await fetchStreamingToken(
+            userToken: gssvToken.token,
+            offeringID: "xhome"
+        )
+        let xCloudToken = try await fetchPreferredCloudStreamingToken(userToken: gssvToken.token)
+
+        let state = AuthState(
+            isSignedIn: true,
+            isAuthenticating: false,
+            userProfile: profile,
+            statusMessage: profile == nil
+                ? "Refreshed live session. Profile refresh is unavailable."
+                : "Refreshed live session from stored refresh token."
+        )
+        let refreshedTokens = StoredTokens(
+            authToken: tokenResponse.accessToken,
+            refreshToken: tokenResponse.refreshToken,
+            webToken: webToken.token,
+            userHash: userHash,
+            xHomeStreamingToken: xHomeToken.token,
+            xHomeBaseURI: xHomeToken.defaultBaseURI,
+            xCloudStreamingToken: xCloudToken?.token,
+            xCloudBaseURI: xCloudToken?.defaultBaseURI
+        )
+        return AuthSignInResult(authState: state, tokens: refreshedTokens)
+    }
+
     private func restoreUserProfile(from tokens: StoredTokens) async throws -> UserProfile? {
         guard
             let webToken = tokens.webToken, webToken.isEmpty == false,
@@ -289,5 +354,12 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
 public enum LiveAuthProviderError: Error, Equatable {
     case oauth(String)
     case profileUnavailable
+    case refreshTokenMissing
     case timedOut
+}
+
+private extension StoredTokens {
+    var hasRestorableLiveSession: Bool {
+        authToken?.isEmpty == false || refreshToken?.isEmpty == false
+    }
 }

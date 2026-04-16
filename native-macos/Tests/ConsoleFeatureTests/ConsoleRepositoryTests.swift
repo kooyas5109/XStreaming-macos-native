@@ -88,6 +88,63 @@ func liveConsoleRepositoryFetchesLegacyDeviceList() async throws {
 }
 
 @Test
+func liveConsoleRepositoryReportsExpiredSessionForUnauthorizedDeviceList() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 401,
+            body: """
+            {
+              "error": "Unauthorized"
+            }
+            """
+        )
+    ])
+    let repository = LiveConsoleRepository(
+        httpClient: HTTPClient(session: session),
+        tokenStore: InMemoryTokenStore(
+            initialValue: StoredTokens(
+                webToken: "expired-web-token",
+                userHash: "12345"
+            )
+        )
+    )
+
+    await #expect(throws: ConsoleRepositoryError.sessionExpired) {
+        _ = try await repository.fetchConsoles()
+    }
+}
+
+@Test
+func liveConsoleRepositoryReportsReadableServiceErrorsBeforeListDecoding() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "status": {
+                "errorCode": "AuthExpired",
+                "errorMessage": "Token expired"
+              }
+            }
+            """
+        )
+    ])
+    let repository = LiveConsoleRepository(
+        httpClient: HTTPClient(session: session),
+        tokenStore: InMemoryTokenStore(
+            initialValue: StoredTokens(
+                webToken: "expired-web-token",
+                userHash: "12345"
+            )
+        )
+    )
+
+    await #expect(throws: ConsoleRepositoryError.sessionExpired) {
+        _ = try await repository.fetchConsoles()
+    }
+}
+
+@Test
 func liveConsoleRepositorySendsLegacyCommandPayload() async throws {
     let session = MockURLSession(responses: [
         MockURLSession.Response(

@@ -27,6 +27,7 @@ These areas are implemented, committed, and verified by tests:
 - Native command menu and stream quick actions for demo flows
 - Native auth shell entry with silent-restore and device-code sign-in state flow
 - Live auth mode can complete Microsoft/Xbox device-code login and fetch real profile settings
+- Live auth restore can refresh Microsoft/Xbox web and streaming tokens from the stored refresh token
 - Live console inventory can fetch real Xbox devices through the xccs smartglass API
 - Live xhome session creation and state polling are wired into the native streaming repository
 - Live xhome session connect now exchanges the Microsoft refresh token for a console transfer token and posts it to `/connect`
@@ -55,7 +56,8 @@ These areas have structure in place, but the real product path is not fully conn
   - Live auth provider and endpoint seam now exist for Microsoft and Xbox token requests
   - App shell can now switch between preview and live auth mode
   - Real Microsoft/Xbox device-code sign-in and profile fetch are wired
-  - Token refresh still needs to be added
+  - Startup restore can refresh stored Microsoft/Xbox tokens when the web/profile token is stale
+  - Proactive/background token refresh still needs to be added
 - StreamingFeature
   - Session core and engine abstractions exist
   - Preview/native shell works
@@ -74,7 +76,7 @@ These areas have structure in place, but the real product path is not fully conn
 
 These areas should still be treated as open:
 
-- Real Xbox token refresh and authenticated session bootstrap beyond stored-token restore
+- Proactive Xbox token refresh before expiry during long-running sessions
 - Live console power/text operations verified against a real device
 - Real xCloud catalog and session creation flow over native repositories
 - Real SDP and ICE exchange driving a production-capable streaming session

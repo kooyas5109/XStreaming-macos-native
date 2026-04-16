@@ -28,7 +28,28 @@ public struct PreviewConsoleRepository: ConsoleRepository {
 
 public enum ConsoleRepositoryError: Error, Equatable {
     case missingAuthContext
+    case sessionExpired
     case service(String)
+    case unexpectedResponse(Int, String)
+}
+
+extension ConsoleRepositoryError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .missingAuthContext:
+            "Xbox authentication is missing. Please sign in again."
+        case .sessionExpired:
+            "Xbox session expired. Please sign out and sign in again."
+        case .service(let message):
+            message
+        case .unexpectedResponse(let statusCode, let body):
+            if body.isEmpty {
+                "Xbox service returned an unexpected response (\(statusCode))."
+            } else {
+                "Xbox service returned an unexpected response (\(statusCode)): \(body)"
+            }
+        }
+    }
 }
 
 public struct LiveConsoleRepository: ConsoleRepository {
@@ -53,9 +74,10 @@ public struct LiveConsoleRepository: ConsoleRepository {
             endpoint: ConsoleEndpoints.devices(userToken: auth.webToken, userHash: auth.userHash)
         )
         let response = try await httpClient.send(request)
+        try validateConsoleResponse(response)
         let payload = try httpClient.decode(ConsoleListResponse.self, from: response)
         try payload.assertOK()
-        return payload.result.map { $0.asConsoleDevice() }
+        return (payload.result ?? []).map { $0.asConsoleDevice() }
     }
 
     public func powerOn(consoleID: String) async throws {
@@ -94,8 +116,27 @@ public struct LiveConsoleRepository: ConsoleRepository {
         )
         let request = try RequestBuilder.make(baseURL: baseURL, endpoint: endpoint)
         let response = try await httpClient.send(request)
+        try validateConsoleResponse(response)
         let payload = try httpClient.decode(ConsoleCommandResponse.self, from: response)
         try payload.assertOK()
+    }
+
+    private func validateConsoleResponse(_ response: HTTPResponse) throws {
+        guard (200...299).contains(response.response.statusCode) else {
+            if response.response.statusCode == 401 || response.response.statusCode == 403 {
+                throw ConsoleRepositoryError.sessionExpired
+            }
+
+            let body = String(data: response.data, encoding: .utf8) ?? ""
+            throw ConsoleRepositoryError.unexpectedResponse(response.response.statusCode, body)
+        }
+
+        if let serviceError = try? JSONDecoder().decode(ConsoleErrorResponse.self, from: response.data) {
+            if serviceError.isAuthenticationError {
+                throw ConsoleRepositoryError.sessionExpired
+            }
+            throw ConsoleRepositoryError.service(serviceError.displayMessage)
+        }
     }
 
     private func loadAuthContext() throws -> ConsoleAuthContext {
@@ -174,6 +215,61 @@ enum ConsoleEndpoints {
 private struct ConsoleServiceStatus: Decodable {
     let errorCode: String
     let errorMessage: String?
+}
+
+private struct ConsoleErrorResponse: Decodable {
+    let error: String?
+    let errorCode: String?
+    let errorMessage: String?
+    let message: String?
+    let status: ConsoleServiceStatus?
+
+    enum CodingKeys: String, CodingKey {
+        case error
+        case errorCode
+        case errorMessage
+        case message
+        case status
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        error = try container.decodeIfPresent(String.self, forKey: .error)
+        errorCode = try container.decodeIfPresent(String.self, forKey: .errorCode)
+        errorMessage = try container.decodeIfPresent(String.self, forKey: .errorMessage)
+        message = try container.decodeIfPresent(String.self, forKey: .message)
+        status = try container.decodeIfPresent(ConsoleServiceStatus.self, forKey: .status)
+
+        let hasTopLevelError = [error, errorCode, errorMessage, message]
+            .contains { ($0?.isEmpty == false) }
+        let hasStatusError = status.map { $0.errorCode != "OK" } ?? false
+        guard hasTopLevelError || hasStatusError else {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "No console error payload found.")
+            )
+        }
+    }
+
+    var isAuthenticationError: Bool {
+        let values = [error, errorCode, errorMessage, message, status?.errorCode, status?.errorMessage]
+            .compactMap { $0?.lowercased() }
+            .joined(separator: " ")
+        return values.contains("unauthorized")
+            || values.contains("forbidden")
+            || values.contains("expired")
+            || values.contains("token")
+            || values.contains("auth")
+    }
+
+    var displayMessage: String {
+        status?.errorMessage
+            ?? errorMessage
+            ?? message
+            ?? error
+            ?? status?.errorCode
+            ?? errorCode
+            ?? "Xbox service returned an error."
+    }
 }
 
 private struct ConsoleListResponse: Decodable {
@@ -267,7 +363,7 @@ private struct ConsoleListResponse: Decodable {
     }
 
     let status: ConsoleServiceStatus
-    let result: [RemoteConsole]
+    let result: [RemoteConsole]?
 
     func assertOK() throws {
         guard status.errorCode == "OK" else {

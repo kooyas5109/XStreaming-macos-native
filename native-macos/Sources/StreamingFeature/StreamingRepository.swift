@@ -6,6 +6,7 @@ import SharedDomain
 public protocol StreamingRepository: Sendable {
     func createSession(kind: StreamingKind, targetID: String) async throws -> StreamingSession
     func refreshSession(sessionID: String) async throws -> StreamingSession
+    func connectSession(sessionID: String) async throws -> StreamingSession
     func sendKeepAlive(sessionID: String) async throws
     func stopSession(sessionID: String) async throws
 }
@@ -52,6 +53,16 @@ public final class PreviewStreamingRepository: @unchecked Sendable, StreamingRep
         return session
     }
 
+    public func connectSession(sessionID: String) async throws -> StreamingSession {
+        StreamingSession(
+            id: sessionID,
+            targetID: createdSession.targetID,
+            sessionPath: createdSession.sessionPath,
+            kind: createdSession.kind,
+            state: .started
+        )
+    }
+
     public func sendKeepAlive(sessionID: String) async throws {}
 
     public func stopSession(sessionID: String) async throws {}
@@ -59,6 +70,8 @@ public final class PreviewStreamingRepository: @unchecked Sendable, StreamingRep
 
 public enum LiveStreamingRepositoryError: Error, Equatable {
     case missingToken(StreamingKind)
+    case missingRefreshToken
+    case missingSessionContext(String)
     case invalidBaseURI(String)
 }
 
@@ -128,6 +141,25 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
         )
     }
 
+    public func connectSession(sessionID: String) async throws -> StreamingSession {
+        guard let context = sessionContexts[sessionID] else {
+            throw LiveStreamingRepositoryError.missingSessionContext(sessionID)
+        }
+
+        let transferToken = try await fetchTransferToken()
+        let request = try RequestBuilder.make(
+            baseURL: context.baseURL,
+            endpoint: try StreamingEndpoints.connect(
+                kind: context.kind,
+                sessionID: sessionID,
+                transferToken: transferToken
+            ),
+            token: context.streamingToken
+        )
+        _ = try await httpClient.send(request)
+        return try await refreshSession(sessionID: sessionID)
+    }
+
     public func sendKeepAlive(sessionID: String) async throws {
         guard let context = sessionContexts[sessionID] else { return }
         let request = try RequestBuilder.make(
@@ -173,6 +205,26 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
 
         return StreamingAuthContext(streamingToken: streamingToken, baseURL: baseURL)
     }
+
+    private func fetchTransferToken() async throws -> String {
+        guard
+            let refreshToken = try tokenStore.load()?.refreshToken,
+            refreshToken.isEmpty == false
+        else {
+            throw LiveStreamingRepositoryError.missingRefreshToken
+        }
+
+        let request = try RequestBuilder.make(
+            baseURL: URL(string: "https://login.live.com")!,
+            endpoint: StreamingEndpoints.transferToken(
+                clientID: "1f907974-e22b-4810-a9de-d9647380c97e",
+                refreshToken: refreshToken
+            )
+        )
+        let response = try await httpClient.send(request)
+        let payload = try httpClient.decode(StreamingTransferTokenResponse.self, from: response)
+        return payload.livePassportToken
+    }
 }
 
 private struct StreamingAuthContext {
@@ -210,11 +262,54 @@ private enum StreamingEndpoints {
         )
     }
 
+    static func connect(kind: StreamingKind, sessionID: String, transferToken: String) throws -> BasicEndpoint {
+        let body = try JSONEncoder().encode(StreamingConnectRequest(userToken: transferToken))
+        return BasicEndpoint(
+            path: "/v5/sessions/\(kind.pathComponent)/\(sessionID)/connect",
+            method: .post,
+            body: body
+        )
+    }
+
     static func stop(kind: StreamingKind, sessionID: String) -> BasicEndpoint {
         BasicEndpoint(
             path: "/v5/sessions/\(kind.pathComponent)/\(sessionID)",
             method: .delete
         )
+    }
+
+    static func transferToken(clientID: String, refreshToken: String) -> BasicEndpoint {
+        let body = [
+            ("client_id", clientID),
+            ("grant_type", "refresh_token"),
+            ("scope", "service::http://Passport.NET/purpose::PURPOSE_XBOX_CLOUD_CONSOLE_TRANSFER_TOKEN"),
+            ("refresh_token", refreshToken),
+            ("code", ""),
+            ("code_verifier", ""),
+            ("redirect_uri", "")
+        ]
+        .map { key, value in
+            "\(key)=\(value.formURLEncoded())"
+        }
+        .joined(separator: "&")
+
+        return BasicEndpoint(
+            path: "/oauth20_token.srf",
+            method: .post,
+            headers: [
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Cache-Control": "no-store, must-revalidate, no-cache"
+            ],
+            body: Data(body.utf8)
+        )
+    }
+}
+
+private extension String {
+    func formURLEncoded() -> String {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: ":#[]@!$&'()*+,;=")
+        return addingPercentEncoding(withAllowedCharacters: allowed) ?? self
     }
 }
 
@@ -258,6 +353,18 @@ private struct StreamingPlayRequest: Encodable {
         case settings
         case serverID = "serverId"
         case fallbackRegionNames
+    }
+}
+
+private struct StreamingConnectRequest: Encodable {
+    let userToken: String
+}
+
+private struct StreamingTransferTokenResponse: Decodable {
+    let livePassportToken: String
+
+    enum CodingKeys: String, CodingKey {
+        case livePassportToken = "lpt"
     }
 }
 
@@ -371,6 +478,14 @@ enum StreamingFixtures {
         sessionPath: "/sessions/stream-session-1",
         kind: .cloud,
         state: .readyToConnect
+    )
+
+    static let startedSession = StreamingSession(
+        id: "stream-session-1",
+        targetID: "target-1",
+        sessionPath: "/sessions/stream-session-1",
+        kind: .cloud,
+        state: .started
     )
 
     static let failedSession = StreamingSession(

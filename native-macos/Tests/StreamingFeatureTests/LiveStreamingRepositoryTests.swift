@@ -86,6 +86,73 @@ func liveStreamingRepositoryStopsHomeSession() async throws {
     #expect(await session.requestURLs.last == "https://home.example.com/v5/sessions/home/session-123")
 }
 
+@Test
+func liveStreamingRepositoryConnectsReadySessionWithTransferToken() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "sessionPath": "/v5/sessions/home/session-123",
+              "state": "Provisioning"
+            }
+            """
+        ),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "lpt": "live-passport-transfer-token",
+              "refresh_token": "new-refresh-token",
+              "user_id": "user-1"
+            }
+            """
+        ),
+        MockURLSession.Response(statusCode: 200, body: "{}"),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "state": "Provisioned"
+            }
+            """
+        )
+    ])
+    let repository = LiveStreamingRepository(
+        httpClient: HTTPClient(session: session),
+        tokenStore: InMemoryTokenStore(
+            initialValue: StoredTokens(
+                refreshToken: "refresh-token+with&symbols=",
+                xHomeStreamingToken: "xhome-token",
+                xHomeBaseURI: "https://home.example.com"
+            )
+        )
+    )
+
+    let created = try await repository.createSession(kind: .home, targetID: "console-1")
+    let connected = try await repository.connectSession(sessionID: created.id)
+
+    #expect(connected.state == .started)
+    #expect(await session.requestMethods == ["POST", "POST", "POST", "GET"])
+    #expect(await session.requestURLs == [
+        "https://home.example.com/v5/sessions/home/play",
+        "https://login.live.com/oauth20_token.srf",
+        "https://home.example.com/v5/sessions/home/session-123/connect",
+        "https://home.example.com/v5/sessions/home/session-123/state"
+    ])
+    #expect(await session.authorizationHeaders == [
+        "Bearer xhome-token",
+        "",
+        "Bearer xhome-token",
+        "Bearer xhome-token"
+    ])
+    let bodies = await session.requestBodies
+    #expect(bodies[1].contains("grant_type=refresh_token"))
+    #expect(bodies[1].contains("refresh_token=refresh-token%2Bwith%26symbols%3D"))
+    #expect(bodies[1].contains("PURPOSE_XBOX_CLOUD_CONSOLE_TRANSFER_TOKEN"))
+    #expect(bodies[2].contains("\"userToken\":\"live-passport-transfer-token\""))
+}
+
 private actor RequestCapture {
     private(set) var requestURLs: [String] = []
     private(set) var requestMethods: [String] = []

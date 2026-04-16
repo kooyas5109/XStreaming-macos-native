@@ -29,6 +29,7 @@ These areas are implemented, committed, and verified by tests:
 - Live auth mode can complete Microsoft/Xbox device-code login and fetch real profile settings
 - Live console inventory can fetch real Xbox devices through the xccs smartglass API
 - Live xhome session creation and state polling are wired into the native streaming repository
+- Live xhome session connect now exchanges the Microsoft refresh token for a console transfer token and posts it to `/connect`
 
 ## Implemented But Still Demo-Oriented
 
@@ -59,6 +60,7 @@ These areas have structure in place, but the real product path is not fully conn
   - Session core and engine abstractions exist
   - Preview/native shell works
   - Live xhome `/play`, `/state`, `/keepalive`, and `/delete` session calls are wired
+  - Live xhome `/connect` transfer-token handshake is wired after `ReadyToConnect`
   - Full production streaming transport is not fully connected
 - Input support
   - Keyboard mapping, focus coordination, and controller monitoring exist
@@ -75,7 +77,6 @@ These areas should still be treated as open:
 - Real Xbox token refresh and authenticated session bootstrap beyond stored-token restore
 - Live console power/text operations verified against a real device
 - Real xCloud catalog and session creation flow over native repositories
-- Live stream `/connect` MSAL transfer-token handshake after `ReadyToConnect`
 - Real SDP and ICE exchange driving a production-capable streaming session
 - Real controller, keyboard, mouse, rumble, and text input injection during live streaming
 - Theme system, background keepalive, FSR, and other non-core settings parity

@@ -24,7 +24,8 @@ func streamingServiceStartsEngineWhenSessionBecomesReady() async throws {
 
     let state = try await service.startStreaming(kind: .cloud, targetID: "title-1")
 
-    #expect(state == .streaming(StreamingFixtures.readySession))
+    #expect(state.session?.state == .started)
+    #expect(await repository.connectCalls == ["stream-session-1"])
     #expect(await engine.prepareCalls == 1)
     #expect(await engine.startCalls == 1)
 }
@@ -54,6 +55,36 @@ func streamingServiceSurfacesFailedSessionWithoutStartingEngine() async throws {
 }
 
 @Test
+func streamingServiceWaitsForStartedStateAfterConnectHandshake() async throws {
+    let repository = TestStreamingRepository(
+        createdSession: StreamingFixtures.pendingSession,
+        refreshResponses: [
+            StreamingFixtures.readySession,
+            StreamingFixtures.readySession,
+            StreamingFixtures.startedSession
+        ],
+        connectResponse: StreamingFixtures.readySession
+    )
+    let engine = TestStreamingEngine()
+    let service = StreamingService(
+        repository: repository,
+        engine: engine,
+        monitor: StreamingSessionMonitor(
+            repository: repository,
+            maxAttempts: 3,
+            pollIntervalNanoseconds: 1_000_000
+        )
+    )
+
+    let state = try await service.startStreaming(kind: .cloud, targetID: "title-1")
+
+    #expect(state.session?.state == .started)
+    #expect(await repository.connectCalls == ["stream-session-1"])
+    #expect(await engine.prepareCalls == 1)
+    #expect(await engine.startCalls == 1)
+}
+
+@Test
 func streamingServiceStopsRemoteSessionAndEngine() async throws {
     let repository = TestStreamingRepository(
         createdSession: StreamingFixtures.pendingSession,
@@ -75,15 +106,19 @@ func streamingServiceStopsRemoteSessionAndEngine() async throws {
 private actor TestStreamingRepository: StreamingRepository {
     let createdSession: StreamingSession
     let refreshResponses: [StreamingSession]
+    let connectResponse: StreamingSession?
     var refreshIndex = 0
+    var connectCalls: [String] = []
     var stopCalls: [String] = []
 
     init(
         createdSession: StreamingSession,
-        refreshResponses: [StreamingSession]
+        refreshResponses: [StreamingSession],
+        connectResponse: StreamingSession? = nil
     ) {
         self.createdSession = createdSession
         self.refreshResponses = refreshResponses
+        self.connectResponse = connectResponse
     }
 
     func createSession(kind: StreamingKind, targetID: String) async throws -> StreamingSession {
@@ -106,6 +141,21 @@ private actor TestStreamingRepository: StreamingRepository {
         let session = refreshResponses[refreshIndex]
         refreshIndex += 1
         return session
+    }
+
+    func connectSession(sessionID: String) async throws -> StreamingSession {
+        connectCalls.append(sessionID)
+        if let connectResponse {
+            return connectResponse
+        }
+
+        return StreamingSession(
+            id: sessionID,
+            targetID: createdSession.targetID,
+            sessionPath: createdSession.sessionPath,
+            kind: createdSession.kind,
+            state: .started
+        )
     }
 
     func sendKeepAlive(sessionID: String) async throws {}

@@ -31,10 +31,28 @@ public final class StreamingService: @unchecked Sendable {
 
         switch terminalSession.state {
         case .readyToConnect:
-            try await engine.prepare(session: terminalSession)
+            var connectedSession = try await repository.connectSession(sessionID: terminalSession.id)
+            state = StreamingStateMachine.reduce(
+                state,
+                event: .remoteStateChanged(connectedSession.state.rawValue, session: connectedSession)
+            )
+
+            if connectedSession.state == .readyToConnect || connectedSession.state == .pending || connectedSession.state == .queued {
+                connectedSession = try await monitor.waitUntilStarted(sessionID: terminalSession.id) { _ in }
+                state = StreamingStateMachine.reduce(
+                    state,
+                    event: .remoteStateChanged(connectedSession.state.rawValue, session: connectedSession)
+                )
+            }
+
+            guard connectedSession.state == .started else {
+                return state
+            }
+
+            try await engine.prepare(session: connectedSession)
             state = StreamingStateMachine.reduce(state, event: .enginePrepared)
 
-            try await engine.start(session: terminalSession)
+            try await engine.start(session: connectedSession)
             return StreamingStateMachine.reduce(state, event: .engineStarted)
 
         case .started:

@@ -39,4 +39,28 @@ public final class StreamingSessionMonitor: @unchecked Sendable {
 
         return try await repository.refreshSession(sessionID: sessionID)
     }
+
+    public func waitUntilStarted(
+        sessionID: String,
+        onUpdate: (StreamingSession) -> Void
+    ) async throws -> StreamingSession {
+        var attempts = 0
+
+        while attempts < maxAttempts {
+            let session = try await repository.refreshSession(sessionID: sessionID)
+            onUpdate(session)
+
+            switch session.state {
+            case .started, .failed, .stopped:
+                return session
+            case .pending, .queued, .readyToConnect:
+                attempts += 1
+                if attempts < maxAttempts {
+                    try await Task.sleep(nanoseconds: pollIntervalNanoseconds)
+                }
+            }
+        }
+
+        return try await repository.refreshSession(sessionID: sessionID)
+    }
 }

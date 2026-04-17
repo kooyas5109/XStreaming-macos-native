@@ -203,6 +203,40 @@ func streamingServiceExposesSignalingExchangeOperations() async throws {
     #expect(await repository.iceExchangeCalls == ["stream-session-1:a=candidate:1 1 UDP 1 10.0.0.1 9002 typ host"])
 }
 
+@Test
+func streamingServiceForwardsBatchIceCandidatesToRepository() async throws {
+    let repository = TestStreamingRepository(
+        createdSession: StreamingFixtures.pendingSession,
+        refreshResponses: []
+    )
+    let service = StreamingService(
+        repository: repository,
+        engine: TestStreamingEngine()
+    )
+
+    _ = try await service.exchangeICE(
+        sessionID: "stream-session-1",
+        candidates: [
+            StreamingICECandidate(
+                messageType: "iceCandidate",
+                candidate: "a=candidate:1 1 UDP 1 10.0.0.1 9002 typ host",
+                sdpMid: "0",
+                sdpMLineIndex: "0"
+            ),
+            StreamingICECandidate(
+                messageType: "iceCandidate",
+                candidate: "a=candidate:2 1 UDP 1 10.0.0.2 9002 typ host",
+                sdpMid: "0",
+                sdpMLineIndex: "0"
+            )
+        ]
+    )
+
+    #expect(await repository.iceBatchExchangeCalls == [
+        "stream-session-1:a=candidate:1 1 UDP 1 10.0.0.1 9002 typ host|a=candidate:2 1 UDP 1 10.0.0.2 9002 typ host"
+    ])
+}
+
 private actor TestStreamingRepository: StreamingRepository {
     let createdSession: StreamingSession
     let refreshResponses: [StreamingSession]
@@ -211,6 +245,7 @@ private actor TestStreamingRepository: StreamingRepository {
     var connectCalls: [String] = []
     var sdpExchangeCalls: [String] = []
     var iceExchangeCalls: [String] = []
+    var iceBatchExchangeCalls: [String] = []
     var keepAliveCalls: [String] = []
     var stopCalls: [String] = []
 
@@ -268,6 +303,18 @@ private actor TestStreamingRepository: StreamingRepository {
 
     func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate] {
         iceExchangeCalls.append("\(sessionID):\(candidate)")
+        return [
+            StreamingICECandidate(
+                messageType: "iceCandidate",
+                candidate: "a=candidate:1 1 UDP 1 127.0.0.1 9002 typ host",
+                sdpMid: "0",
+                sdpMLineIndex: "0"
+            )
+        ]
+    }
+
+    func exchangeICE(sessionID: String, candidates: [StreamingICECandidate]) async throws -> [StreamingICECandidate] {
+        iceBatchExchangeCalls.append("\(sessionID):\(candidates.map(\.candidate).joined(separator: "|"))")
         return [
             StreamingICECandidate(
                 messageType: "iceCandidate",

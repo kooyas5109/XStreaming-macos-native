@@ -81,6 +81,10 @@ public final class StreamingService: @unchecked Sendable, StreamingSignalingClie
         try await repository.exchangeICE(sessionID: sessionID, candidate: candidate)
     }
 
+    public func exchangeICE(sessionID: String, candidates: [StreamingICECandidate]) async throws -> [StreamingICECandidate] {
+        try await repository.exchangeICE(sessionID: sessionID, candidates: candidates)
+    }
+
     public func stopStreaming(sessionID: String) async throws -> StreamingStateMachine.State {
         cancelKeepAliveLoop()
         try await repository.stopSession(sessionID: sessionID)

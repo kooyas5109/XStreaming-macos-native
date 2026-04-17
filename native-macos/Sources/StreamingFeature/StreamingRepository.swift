@@ -9,6 +9,7 @@ public protocol StreamingRepository: StreamingSignalingClient {
     func connectSession(sessionID: String) async throws -> StreamingSession
     func exchangeSDP(sessionID: String, offerSDP: String) async throws -> StreamingSDPAnswer
     func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate]
+    func exchangeICE(sessionID: String, candidates: [StreamingICECandidate]) async throws -> [StreamingICECandidate]
     func sendKeepAlive(sessionID: String) async throws
     func stopSession(sessionID: String) async throws
 }

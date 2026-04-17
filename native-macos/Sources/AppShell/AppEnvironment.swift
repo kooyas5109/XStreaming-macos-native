@@ -56,17 +56,19 @@ public struct AppEnvironment: Sendable {
 
     @MainActor
     public static func make(mode: AuthProviderMode) -> AppEnvironment {
-        let streamingEngine = NativeStreamingEngine.preview()
+        let streamingEngine: any StreamingEngineProtocol
         let repository: StreamingRepository
         let authRepository: DefaultAuthRepository
         let tokenStore: TokenStoreProtocol
 
         switch mode {
         case .preview:
+            streamingEngine = NativeStreamingEngine.preview()
             authRepository = DefaultAuthRepository(provider: PreviewXboxAuthProvider())
             tokenStore = InMemoryTokenStore()
             repository = PreviewStreamingRepository()
         case .live:
+            streamingEngine = try! WebViewStreamingEngine(configuration: .preview)
             authRepository = DefaultAuthRepository(provider: LiveXboxAuthProvider())
             tokenStore = KeychainTokenStore()
             repository = LiveStreamingRepository(tokenStore: tokenStore)

@@ -92,7 +92,8 @@ let package = Package(
             dependencies: ["SharedDomain", "PersistenceKit", "NetworkingKit", "SupportKit"],
             path: "Sources/StreamingFeature",
             resources: [
-                .process("Compatibility/BridgeScript.js")
+                .process("Compatibility/BridgeScript.js"),
+                .process("Compatibility/XStreamingPlayer.min.js")
             ]
         ),
         .target(

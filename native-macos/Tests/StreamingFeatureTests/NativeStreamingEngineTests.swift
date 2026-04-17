@@ -129,6 +129,30 @@ func nativeEngineWritesControlFramesToInjectedWebRTCDataChannel() async throws {
 
 @MainActor
 @Test
+func nativeEngineStartsControlChannelWithAuthorizationAndGamepadPresence() async throws {
+    let controlChannel = TestDataChannelWriter(state: .open)
+    let session = WebRTCSession(controlDataChannel: controlChannel)
+    let engine = NativeStreamingEngine(webRTCSession: session)
+    let streamingSession = StreamingSession(
+        id: "native-stream-control",
+        targetID: "console-1",
+        sessionPath: "/native/session-control",
+        kind: .home,
+        state: .started
+    )
+
+    try await engine.start(session: streamingSession)
+
+    let frames = await controlChannel.frames()
+    #expect(frames.count == 3)
+    #expect(engine.webRTCSession.sentControlChannelFrames == frames)
+
+    let first = try #require(JSONSerialization.jsonObject(with: frames[0]) as? [String: String])
+    #expect(first["message"] == "authorizationRequest")
+}
+
+@MainActor
+@Test
 func nativeEngineRejectsControlFramesWhenDataChannelIsClosed() async throws {
     let dataChannel = TestDataChannelWriter(state: .closed)
     let session = WebRTCSession(inputDataChannel: dataChannel)

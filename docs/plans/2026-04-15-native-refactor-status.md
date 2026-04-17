@@ -39,6 +39,7 @@ These areas are implemented, committed, and verified by tests:
 - Stream controls now produce typed control events for Nexus, text, microphone, and mapped digital game actions
 - Stream control events now also produce stable Codable payloads and JSON frames for the WebRTC input data channel seam
 - Native input now has a tested binary input packet encoder compatible with the original `xstreaming-player` metadata and gamepad packet layout
+- Native control channel now has tested authorization, gamepad presence, and video keyframe request messages
 
 ## Implemented But Still Demo-Oriented
 
@@ -82,7 +83,8 @@ These areas have structure in place, but the real product path is not fully conn
   - Keyboard mapping, focus coordination, and controller monitoring exist
   - Digital game actions can be translated into typed stream control events
   - Button and trigger input can now serialize into the live WebRTC input data channel packet format
-  - Full pointer, keyboard, rumble, chat, and control-channel orchestration is not fully wired
+  - Initial control-channel authorization and gamepad presence messages are wired
+  - Full pointer, keyboard, rumble, chat, and periodic keyframe orchestration is not fully wired
 - Console and catalog services
   - Console preview, cache semantics, and live xccs inventory are wired
   - Console power/text command request shapes exist, but need live interaction verification

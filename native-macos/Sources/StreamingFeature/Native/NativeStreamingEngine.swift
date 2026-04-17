@@ -49,6 +49,7 @@ public final class NativeStreamingEngine: StreamingEngineProtocol {
         } else {
             webRTCSession.connect()
         }
+        try? await webRTCSession.startControlChannel()
         try? await webRTCSession.sendInputMetadata()
         audioCoordinator.activate()
         videoRenderer.markStreamingActive()

@@ -21,9 +21,12 @@ public final class WebRTCSession: @unchecked Sendable {
     public private(set) var sentControlEvents: [StreamingControlEvent] = []
     public private(set) var sentControlPayloads: [StreamingControlPayload] = []
     public private(set) var sentControlFrames: [Data] = []
+    public private(set) var sentControlChannelFrames: [Data] = []
     private let controlPayloadEncoder: StreamingControlPayloadEncoder
     private let inputPacketEncoder: StreamingInputPacketEncoder
+    private let controlChannelMessageEncoder: StreamingControlChannelMessageEncoder
     private let inputDataChannel: (any WebRTCDataChannelWriter)?
+    private let controlDataChannel: (any WebRTCDataChannelWriter)?
     private var inputSequence: UInt32 = 0
 
     public init(
@@ -31,13 +34,17 @@ public final class WebRTCSession: @unchecked Sendable {
         state: WebRTCConnectionState = .idle,
         controlPayloadEncoder: StreamingControlPayloadEncoder = StreamingControlPayloadEncoder(),
         inputPacketEncoder: StreamingInputPacketEncoder = StreamingInputPacketEncoder(),
-        inputDataChannel: (any WebRTCDataChannelWriter)? = nil
+        controlChannelMessageEncoder: StreamingControlChannelMessageEncoder = StreamingControlChannelMessageEncoder(),
+        inputDataChannel: (any WebRTCDataChannelWriter)? = nil,
+        controlDataChannel: (any WebRTCDataChannelWriter)? = nil
     ) {
         self.id = id
         self.state = state
         self.controlPayloadEncoder = controlPayloadEncoder
         self.inputPacketEncoder = inputPacketEncoder
+        self.controlChannelMessageEncoder = controlChannelMessageEncoder
         self.inputDataChannel = inputDataChannel
+        self.controlDataChannel = controlDataChannel
     }
 
     public func prepareConnection() {
@@ -105,6 +112,20 @@ public final class WebRTCSession: @unchecked Sendable {
         sentControlFrames.append(frame)
     }
 
+    public func startControlChannel(gamepadCount: Int = 1) async throws {
+        try await sendControlChannelFrame(controlChannelMessageEncoder.authorizationRequest())
+        for index in 0..<gamepadCount {
+            try await sendControlChannelFrame(controlChannelMessageEncoder.gamepadChanged(index: index, wasAdded: false))
+        }
+        for index in 0..<gamepadCount {
+            try await sendControlChannelFrame(controlChannelMessageEncoder.gamepadChanged(index: index, wasAdded: true))
+        }
+    }
+
+    public func requestVideoKeyframe() async throws {
+        try await sendControlChannelFrame(controlChannelMessageEncoder.videoKeyframeRequested())
+    }
+
     // Temporary handshake payload until a native WebRTC stack owns offer creation.
     private func makeLocalOffer(session: StreamingSession) -> String {
         """
@@ -157,5 +178,15 @@ public final class WebRTCSession: @unchecked Sendable {
 
     private func currentTimestampMilliseconds() -> Double {
         Date().timeIntervalSince1970 * 1000
+    }
+
+    private func sendControlChannelFrame(_ frame: Data) async throws {
+        if let controlDataChannel {
+            guard await controlDataChannel.state == .open else {
+                throw WebRTCDataChannelWriteError.channelNotOpen
+            }
+            try await controlDataChannel.send(frame)
+        }
+        sentControlChannelFrames.append(frame)
     }
 }

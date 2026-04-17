@@ -6,6 +6,17 @@ import Testing
 
 @MainActor
 @Test
+func localizationStoreDefaultsToChineseOnFirstLaunch() {
+    let store = InMemorySettingsStore()
+    let localization = ShellLocalizationStore(settingsStore: store)
+
+    localization.load()
+
+    #expect(localization.language == AppLanguage.simplifiedChinese)
+}
+
+@MainActor
+@Test
 func localizationStoreLoadsSavedChineseLocale() throws {
     let settings = SettingsMapper.withUpdatedPreferences(
         from: .defaults,

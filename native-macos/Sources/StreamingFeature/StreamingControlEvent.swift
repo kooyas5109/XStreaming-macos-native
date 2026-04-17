@@ -32,6 +32,51 @@ public enum StreamingControlEvent: Equatable, Sendable {
     case microphone(active: Bool)
 }
 
+public struct StreamingControlPayload: Codable, Equatable, Sendable {
+    public let type: String
+    public let button: String?
+    public let phase: String?
+    public let text: String?
+    public let active: Bool?
+
+    public init(
+        type: String,
+        button: String? = nil,
+        phase: String? = nil,
+        text: String? = nil,
+        active: Bool? = nil
+    ) {
+        self.type = type
+        self.button = button
+        self.phase = phase
+        self.text = text
+        self.active = active
+    }
+
+    public init(event: StreamingControlEvent) {
+        switch event {
+        case .button(let button, let phase):
+            self.init(
+                type: "button",
+                button: button.rawValue,
+                phase: phase.rawValue
+            )
+        case .text(let text):
+            self.init(type: "text", text: text)
+        case .microphone(let active):
+            self.init(type: "microphone", active: active)
+        }
+    }
+}
+
+public struct StreamingControlPayloadEncoder: Sendable {
+    public init() {}
+
+    public func payload(for event: StreamingControlEvent) -> StreamingControlPayload {
+        StreamingControlPayload(event: event)
+    }
+}
+
 public struct StreamingInputTranslator: Sendable {
     public init() {}
 

@@ -3,6 +3,11 @@ import Testing
 @testable import SharedDomain
 
 @Test
+func appSettingsDefaultsToChineseLocale() {
+    #expect(AppSettings.defaults.locale == AppLanguage.simplifiedChinese.localeCode)
+}
+
+@Test
 func appSettingsRoundTripsThroughJSON() throws {
     let value = AppSettings.defaults
     let data = try JSONEncoder().encode(value)

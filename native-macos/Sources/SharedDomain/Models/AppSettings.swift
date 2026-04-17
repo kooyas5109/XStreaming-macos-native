@@ -169,7 +169,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
 public extension AppSettings {
     static let defaults = AppSettings(
-        locale: "en",
+        locale: AppLanguage.simplifiedChinese.localeCode,
         useMSAL: false,
         fullscreen: false,
         resolution: 720,

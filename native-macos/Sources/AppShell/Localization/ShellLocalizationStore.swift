@@ -4,7 +4,7 @@ import SharedDomain
 
 @MainActor
 public final class ShellLocalizationStore: ObservableObject {
-    @Published public private(set) var language: AppLanguage = .english
+    @Published public private(set) var language: AppLanguage = .simplifiedChinese
 
     private let settingsStore: SettingsStoreProtocol
 

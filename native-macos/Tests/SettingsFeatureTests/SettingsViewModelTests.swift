@@ -30,7 +30,7 @@ func savingTurnServerUpdatesSettingsStore() async throws {
 
     let persisted = try store.load()
     #expect(persisted.turnServer.url == "turn:relay.example.com")
-    #expect(persisted.locale == "en")
+    #expect(persisted.locale == AppLanguage.simplifiedChinese.localeCode)
     #expect(persisted.preferredGameLanguage == "zh-CN")
     #expect(persisted.fullscreen == true)
     #expect(persisted.performanceStyle == true)
@@ -43,7 +43,7 @@ func savingTurnServerUpdatesSettingsStore() async throws {
     #expect(persisted.vibration == false)
     #expect(persisted.enableNativeMouseKeyboard == true)
     #expect(persisted.mouseSensitive == 1.4)
-    #expect(model.toastMessage == "Saved")
+    #expect(model.toastMessage == "已保存")
 }
 
 @MainActor
@@ -71,7 +71,7 @@ func savingInvalidTurnServerShowsValidationError() throws {
     model.serverURL = "https://invalid.example.com"
     try model.save()
 
-    #expect(model.errorMessage == "TURN server URL must start with turn:")
+    #expect(model.errorMessage == "TURN 服务器地址必须以 turn: 开头")
 }
 
 @MainActor
@@ -93,7 +93,7 @@ func resetRestoresDefaultSettings() throws {
     try model.reset()
 
     #expect(model.settings == .defaults)
-    #expect(model.selectedLanguage == .english)
+    #expect(model.selectedLanguage == .simplifiedChinese)
     #expect(model.preferredGameLanguage == "en-US")
     #expect(model.launchesFullscreen == false)
     #expect(model.performanceStyleEnabled == false)
@@ -107,7 +107,7 @@ func resetRestoresDefaultSettings() throws {
     #expect(model.nativeMouseKeyboardEnabled == false)
     #expect(model.mouseSensitivity == 0.5)
     #expect(model.serverURL == "")
-    #expect(model.toastMessage == "Reset")
+    #expect(model.toastMessage == "已重置")
 }
 
 @Test

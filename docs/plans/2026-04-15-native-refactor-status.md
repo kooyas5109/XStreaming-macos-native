@@ -25,6 +25,7 @@ These areas are implemented, committed, and verified by tests:
 - Bilingual shell support for English and Simplified Chinese
 - CI workflow and integration smoke tests
 - Native command menu and stream quick actions for demo flows
+- Simplified Chinese is the first-launch default shell language
 - Native auth shell entry with silent-restore and device-code sign-in state flow
 - Live auth mode can complete Microsoft/Xbox device-code login and fetch real profile settings
 - Live auth restore can refresh Microsoft/Xbox web and streaming tokens from the stored refresh token
@@ -34,6 +35,7 @@ These areas are implemented, committed, and verified by tests:
 - Live streaming repository can exchange SDP offers and ICE candidates through the Xbox `/sdp` and `/ice` signaling endpoints
 - Native streaming engine now receives the service-level signaling client and performs a testable SDP/ICE exchange before activating the local preview pipeline
 - Stream controls now produce typed control events for Nexus, text, microphone, and mapped digital game actions
+- Stream control events now also produce stable Codable payloads for the future WebRTC input data channel
 
 ## Implemented But Still Demo-Oriented
 
@@ -43,6 +45,7 @@ These areas exist and are useful for architecture validation, but should not be 
 - Stream page controls for display, audio, microphone, fullscreen, performance visibility, send text, Nexus actions, and disconnect actions
 - Native streaming surface preview and stream session state transitions
 - Native control event queue for stream actions and digital button mapping
+- Stable control payload shapes for button, text, and microphone events
 - Cloud catalog preview data
 
 Important constraint:
@@ -69,7 +72,7 @@ These areas have structure in place, but the real product path is not fully conn
   - Live xhome `/connect` transfer-token handshake is wired after `ReadyToConnect`
   - Live `/sdp` and `/ice` signaling request/response seams are wired and tested
   - Native engine now routes startup through the SDP/ICE signaling seam, but still uses placeholder local SDP/ICE generation instead of a production WebRTC media stack
-  - Native engine can accept typed control events, but does not yet serialize them onto a live WebRTC input data channel
+  - Native engine can accept typed control events and build stable payloads, but does not yet write them onto a live WebRTC input data channel
   - Full production streaming transport is not fully connected
 - Input support
   - Keyboard mapping, focus coordination, and controller monitoring exist

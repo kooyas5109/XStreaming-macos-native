@@ -4,7 +4,7 @@ import SharedDomain
 
 @MainActor
 public final class SettingsViewModel: ObservableObject {
-    @Published public var selectedLanguage: AppLanguage = .english
+    @Published public var selectedLanguage: AppLanguage = .simplifiedChinese
     @Published public var preferredGameLanguage: String = "en-US"
     @Published public var launchesFullscreen: Bool = false
     @Published public var performanceStyleEnabled: Bool = false

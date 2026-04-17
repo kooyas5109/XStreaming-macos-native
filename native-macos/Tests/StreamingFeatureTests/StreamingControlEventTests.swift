@@ -1,3 +1,4 @@
+import Foundation
 import SupportKit
 import Testing
 @testable import StreamingFeature
@@ -20,4 +21,33 @@ func inputTranslatorLeavesAnalogAxesForFutureStickPackets() {
 
     #expect(translator.button(for: .leftThumbXAxisPlus) == nil)
     #expect(translator.events(for: .rightThumbYAxisMinus, phase: .ended) == [])
+}
+
+@Test
+func controlPayloadEncoderBuildsStableButtonPayloads() throws {
+    let encoder = StreamingControlPayloadEncoder()
+    let payload = encoder.payload(for: .button(.nexus, .began))
+    let data = try JSONEncoder().encode(payload)
+    let decoded = try JSONDecoder().decode(StreamingControlPayload.self, from: data)
+
+    #expect(payload == StreamingControlPayload(
+        type: "button",
+        button: "Nexus",
+        phase: "began"
+    ))
+    #expect(decoded == payload)
+}
+
+@Test
+func controlPayloadEncoderBuildsTextAndMicrophonePayloads() {
+    let encoder = StreamingControlPayloadEncoder()
+
+    #expect(encoder.payload(for: .text("hello xbox")) == StreamingControlPayload(
+        type: "text",
+        text: "hello xbox"
+    ))
+    #expect(encoder.payload(for: .microphone(active: true)) == StreamingControlPayload(
+        type: "microphone",
+        active: true
+    ))
 }

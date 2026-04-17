@@ -103,6 +103,11 @@ func nativeEngineQueuesControlEventsForTransportLayer() async throws {
         .button(.nexus, .ended),
         .text("hello xbox")
     ])
+    #expect(engine.webRTCSession.sentControlPayloads == [
+        StreamingControlPayload(type: "button", button: "Nexus", phase: "began"),
+        StreamingControlPayload(type: "button", button: "Nexus", phase: "ended"),
+        StreamingControlPayload(type: "text", text: "hello xbox")
+    ])
 }
 
 private final class TestSignalingClient: StreamingSignalingClient, @unchecked Sendable {

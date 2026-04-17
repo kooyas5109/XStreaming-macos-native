@@ -19,13 +19,17 @@ public final class WebRTCSession: @unchecked Sendable {
     public private(set) var localICECandidate: String?
     public private(set) var remoteICECandidates: [StreamingICECandidate] = []
     public private(set) var sentControlEvents: [StreamingControlEvent] = []
+    public private(set) var sentControlPayloads: [StreamingControlPayload] = []
+    private let controlPayloadEncoder: StreamingControlPayloadEncoder
 
     public init(
         id: String = UUID().uuidString,
-        state: WebRTCConnectionState = .idle
+        state: WebRTCConnectionState = .idle,
+        controlPayloadEncoder: StreamingControlPayloadEncoder = StreamingControlPayloadEncoder()
     ) {
         self.id = id
         self.state = state
+        self.controlPayloadEncoder = controlPayloadEncoder
     }
 
     public func prepareConnection() {
@@ -66,6 +70,7 @@ public final class WebRTCSession: @unchecked Sendable {
 
     public func sendControlEvent(_ event: StreamingControlEvent) {
         sentControlEvents.append(event)
+        sentControlPayloads.append(controlPayloadEncoder.payload(for: event))
     }
 
     // Temporary handshake payload until a native WebRTC stack owns offer creation.

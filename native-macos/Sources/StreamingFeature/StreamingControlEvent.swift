@@ -75,6 +75,16 @@ public struct StreamingControlPayloadEncoder: Sendable {
     public func payload(for event: StreamingControlEvent) -> StreamingControlPayload {
         StreamingControlPayload(event: event)
     }
+
+    public func encode(_ payload: StreamingControlPayload) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return try encoder.encode(payload)
+    }
+
+    public func encode(event: StreamingControlEvent) throws -> Data {
+        try encode(payload(for: event))
+    }
 }
 
 public struct StreamingInputTranslator: Sendable {

@@ -60,8 +60,8 @@ public final class NativeStreamingEngine: StreamingEngineProtocol {
         videoRenderer.reset()
     }
 
-    public func sendControlEvent(_ event: StreamingControlEvent) async {
-        webRTCSession.sendControlEvent(event)
+    public func sendControlEvent(_ event: StreamingControlEvent) async throws {
+        try await webRTCSession.sendControlEvent(event)
     }
 
     public func sendRumble(intensity: Double) {

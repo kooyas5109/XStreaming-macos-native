@@ -88,7 +88,7 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
         }
     }
 
-    public func sendControlEvent(_ event: StreamingControlEvent) async {}
+    public func sendControlEvent(_ event: StreamingControlEvent) async throws {}
 
     public func stop() async {
         currentSession = nil

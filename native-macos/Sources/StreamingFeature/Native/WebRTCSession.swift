@@ -20,16 +20,20 @@ public final class WebRTCSession: @unchecked Sendable {
     public private(set) var remoteICECandidates: [StreamingICECandidate] = []
     public private(set) var sentControlEvents: [StreamingControlEvent] = []
     public private(set) var sentControlPayloads: [StreamingControlPayload] = []
+    public private(set) var sentControlFrames: [Data] = []
     private let controlPayloadEncoder: StreamingControlPayloadEncoder
+    private let inputDataChannel: (any WebRTCDataChannelWriter)?
 
     public init(
         id: String = UUID().uuidString,
         state: WebRTCConnectionState = .idle,
-        controlPayloadEncoder: StreamingControlPayloadEncoder = StreamingControlPayloadEncoder()
+        controlPayloadEncoder: StreamingControlPayloadEncoder = StreamingControlPayloadEncoder(),
+        inputDataChannel: (any WebRTCDataChannelWriter)? = nil
     ) {
         self.id = id
         self.state = state
         self.controlPayloadEncoder = controlPayloadEncoder
+        self.inputDataChannel = inputDataChannel
     }
 
     public func prepareConnection() {
@@ -68,9 +72,20 @@ public final class WebRTCSession: @unchecked Sendable {
         lastRumbleIntensity = intensity
     }
 
-    public func sendControlEvent(_ event: StreamingControlEvent) {
+    public func sendControlEvent(_ event: StreamingControlEvent) async throws {
+        let payload = controlPayloadEncoder.payload(for: event)
+        let frame = try controlPayloadEncoder.encode(payload)
+
+        if let inputDataChannel {
+            guard await inputDataChannel.state == .open else {
+                throw WebRTCDataChannelWriteError.channelNotOpen
+            }
+            try await inputDataChannel.send(frame)
+        }
+
         sentControlEvents.append(event)
-        sentControlPayloads.append(controlPayloadEncoder.payload(for: event))
+        sentControlPayloads.append(payload)
+        sentControlFrames.append(frame)
     }
 
     // Temporary handshake payload until a native WebRTC stack owns offer creation.

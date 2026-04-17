@@ -703,7 +703,7 @@ public struct StreamContainerView: View {
     @MainActor
     private func handleToggleMicrophone() async {
         microphoneOpen.toggle()
-        await engine.sendControlEvent(.microphone(active: microphoneOpen))
+        try? await engine.sendControlEvent(.microphone(active: microphoneOpen))
     }
 
     @MainActor
@@ -723,9 +723,9 @@ public struct StreamContainerView: View {
         _ button: StreamingControlButton,
         durationNanoseconds: UInt64
     ) async {
-        await engine.sendControlEvent(.button(button, .began))
+        try? await engine.sendControlEvent(.button(button, .began))
         try? await Task.sleep(nanoseconds: durationNanoseconds)
-        await engine.sendControlEvent(.button(button, .ended))
+        try? await engine.sendControlEvent(.button(button, .ended))
     }
 
     private func handleDisconnect() {
@@ -741,7 +741,7 @@ public struct StreamContainerView: View {
         let trimmed = outgoingText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty == false else { return }
         Task {
-            await engine.sendControlEvent(.text(trimmed))
+            try? await engine.sendControlEvent(.text(trimmed))
         }
         infoMessage = ShellStrings(language: language).sendTextSuccess
         outgoingText = ""

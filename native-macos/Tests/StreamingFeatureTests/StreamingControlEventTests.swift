@@ -27,7 +27,7 @@ func inputTranslatorLeavesAnalogAxesForFutureStickPackets() {
 func controlPayloadEncoderBuildsStableButtonPayloads() throws {
     let encoder = StreamingControlPayloadEncoder()
     let payload = encoder.payload(for: .button(.nexus, .began))
-    let data = try JSONEncoder().encode(payload)
+    let data = try encoder.encode(payload)
     let decoded = try JSONDecoder().decode(StreamingControlPayload.self, from: data)
 
     #expect(payload == StreamingControlPayload(
@@ -36,6 +36,18 @@ func controlPayloadEncoderBuildsStableButtonPayloads() throws {
         phase: "began"
     ))
     #expect(decoded == payload)
+}
+
+@Test
+func controlPayloadEncoderBuildsStableDataChannelFrames() throws {
+    let encoder = StreamingControlPayloadEncoder()
+    let data = try encoder.encode(event: .microphone(active: true))
+    let decoded = try JSONDecoder().decode(StreamingControlPayload.self, from: data)
+
+    #expect(decoded == StreamingControlPayload(
+        type: "microphone",
+        active: true
+    ))
 }
 
 @Test

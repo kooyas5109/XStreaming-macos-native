@@ -1,3 +1,4 @@
+import Foundation
 import SharedDomain
 import Testing
 @testable import StreamingFeature
@@ -94,9 +95,9 @@ func nativeEngineRunsSignalingBeforeActivatingPipeline() async throws {
 func nativeEngineQueuesControlEventsForTransportLayer() async throws {
     let engine = NativeStreamingEngine.preview()
 
-    await engine.sendControlEvent(.button(.nexus, .began))
-    await engine.sendControlEvent(.button(.nexus, .ended))
-    await engine.sendControlEvent(.text("hello xbox"))
+    try await engine.sendControlEvent(.button(.nexus, .began))
+    try await engine.sendControlEvent(.button(.nexus, .ended))
+    try await engine.sendControlEvent(.text("hello xbox"))
 
     #expect(engine.webRTCSession.sentControlEvents == [
         .button(.nexus, .began),
@@ -108,6 +109,47 @@ func nativeEngineQueuesControlEventsForTransportLayer() async throws {
         StreamingControlPayload(type: "button", button: "Nexus", phase: "ended"),
         StreamingControlPayload(type: "text", text: "hello xbox")
     ])
+    #expect(engine.webRTCSession.sentControlFrames.count == 3)
+}
+
+@MainActor
+@Test
+func nativeEngineWritesControlFramesToInjectedWebRTCDataChannel() async throws {
+    let dataChannel = TestDataChannelWriter(state: .open)
+    let session = WebRTCSession(inputDataChannel: dataChannel)
+    let engine = NativeStreamingEngine(webRTCSession: session)
+
+    try await engine.sendControlEvent(.button(.nexus, .began))
+
+    let frames = await dataChannel.frames()
+    #expect(frames.count == 1)
+    #expect(engine.webRTCSession.sentControlFrames == frames)
+
+    let decoded = try JSONDecoder().decode(StreamingControlPayload.self, from: frames[0])
+    #expect(decoded == StreamingControlPayload(
+        type: "button",
+        button: "Nexus",
+        phase: "began"
+    ))
+}
+
+@MainActor
+@Test
+func nativeEngineRejectsControlFramesWhenDataChannelIsClosed() async throws {
+    let dataChannel = TestDataChannelWriter(state: .closed)
+    let session = WebRTCSession(inputDataChannel: dataChannel)
+    let engine = NativeStreamingEngine(webRTCSession: session)
+
+    do {
+        try await engine.sendControlEvent(.button(.nexus, .began))
+        Issue.record("Expected closed data channel to reject control frame.")
+    } catch let error as WebRTCDataChannelWriteError {
+        #expect(error == .channelNotOpen)
+    }
+
+    let frames = await dataChannel.frames()
+    #expect(frames.isEmpty)
+    #expect(engine.webRTCSession.sentControlFrames.isEmpty)
 }
 
 private final class TestSignalingClient: StreamingSignalingClient, @unchecked Sendable {
@@ -129,5 +171,26 @@ private final class TestSignalingClient: StreamingSignalingClient, @unchecked Se
                 sdpMLineIndex: "0"
             )
         ]
+    }
+}
+
+private actor TestDataChannelWriter: WebRTCDataChannelWriter {
+    private let currentState: WebRTCDataChannelState
+    private var sentFrames: [Data] = []
+
+    var state: WebRTCDataChannelState {
+        currentState
+    }
+
+    init(state: WebRTCDataChannelState) {
+        self.currentState = state
+    }
+
+    func send(_ data: Data) async throws {
+        sentFrames.append(data)
+    }
+
+    func frames() -> [Data] {
+        sentFrames
     }
 }

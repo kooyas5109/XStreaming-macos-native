@@ -35,7 +35,7 @@ These areas are implemented, committed, and verified by tests:
 - Live streaming repository can exchange SDP offers and ICE candidates through the Xbox `/sdp` and `/ice` signaling endpoints
 - Native streaming engine now receives the service-level signaling client and performs a testable SDP/ICE exchange before activating the local preview pipeline
 - Stream controls now produce typed control events for Nexus, text, microphone, and mapped digital game actions
-- Stream control events now also produce stable Codable payloads for the future WebRTC input data channel
+- Stream control events now also produce stable Codable payloads and JSON frames for the WebRTC input data channel seam
 
 ## Implemented But Still Demo-Oriented
 
@@ -72,7 +72,7 @@ These areas have structure in place, but the real product path is not fully conn
   - Live xhome `/connect` transfer-token handshake is wired after `ReadyToConnect`
   - Live `/sdp` and `/ice` signaling request/response seams are wired and tested
   - Native engine now routes startup through the SDP/ICE signaling seam, but still uses placeholder local SDP/ICE generation instead of a production WebRTC media stack
-  - Native engine can accept typed control events and build stable payloads, but does not yet write them onto a live WebRTC input data channel
+- Native engine can accept typed control events, build stable payloads, and write JSON frames through an injected WebRTC input data channel writer
   - Full production streaming transport is not fully connected
 - Input support
   - Keyboard mapping, focus coordination, and controller monitoring exist
@@ -91,6 +91,7 @@ These areas should still be treated as open:
 - Live console power/text operations verified against a real device
 - Real xCloud catalog and session creation flow over native repositories
 - Real SDP and ICE exchange backed by a production-capable native WebRTC engine and media renderer
+- Binding the injected WebRTC input data channel writer to the production native WebRTC SDK data channel
 - Real controller, keyboard, mouse, rumble, and text input injection during live streaming
 - Theme system, background keepalive, FSR, and other non-core settings parity
 - Packaging, signing, entitlements, and notarization readiness

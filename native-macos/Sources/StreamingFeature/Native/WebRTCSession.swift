@@ -22,17 +22,21 @@ public final class WebRTCSession: @unchecked Sendable {
     public private(set) var sentControlPayloads: [StreamingControlPayload] = []
     public private(set) var sentControlFrames: [Data] = []
     private let controlPayloadEncoder: StreamingControlPayloadEncoder
+    private let inputPacketEncoder: StreamingInputPacketEncoder
     private let inputDataChannel: (any WebRTCDataChannelWriter)?
+    private var inputSequence: UInt32 = 0
 
     public init(
         id: String = UUID().uuidString,
         state: WebRTCConnectionState = .idle,
         controlPayloadEncoder: StreamingControlPayloadEncoder = StreamingControlPayloadEncoder(),
+        inputPacketEncoder: StreamingInputPacketEncoder = StreamingInputPacketEncoder(),
         inputDataChannel: (any WebRTCDataChannelWriter)? = nil
     ) {
         self.id = id
         self.state = state
         self.controlPayloadEncoder = controlPayloadEncoder
+        self.inputPacketEncoder = inputPacketEncoder
         self.inputDataChannel = inputDataChannel
     }
 
@@ -74,9 +78,9 @@ public final class WebRTCSession: @unchecked Sendable {
 
     public func sendControlEvent(_ event: StreamingControlEvent) async throws {
         let payload = controlPayloadEncoder.payload(for: event)
-        let frame = try controlPayloadEncoder.encode(payload)
+        let frame = inputFrame(for: event)
 
-        if let inputDataChannel {
+        if let frame, let inputDataChannel {
             guard await inputDataChannel.state == .open else {
                 throw WebRTCDataChannelWriteError.channelNotOpen
             }
@@ -85,6 +89,19 @@ public final class WebRTCSession: @unchecked Sendable {
 
         sentControlEvents.append(event)
         sentControlPayloads.append(payload)
+        if let frame {
+            sentControlFrames.append(frame)
+        }
+    }
+
+    public func sendInputMetadata() async throws {
+        let frame = nextMetadataFrame()
+        if let inputDataChannel {
+            guard await inputDataChannel.state == .open else {
+                throw WebRTCDataChannelWriteError.channelNotOpen
+            }
+            try await inputDataChannel.send(frame)
+        }
         sentControlFrames.append(frame)
     }
 
@@ -104,5 +121,41 @@ public final class WebRTCSession: @unchecked Sendable {
     // Temporary host candidate until ICE gathering comes from the native WebRTC stack.
     private func makeLocalICECandidate(session: StreamingSession) -> String {
         "a=candidate:\(session.id.hashValue.magnitude % 10_000) 1 UDP 1 127.0.0.1 9 typ host"
+    }
+
+    private func inputFrame(for event: StreamingControlEvent) -> Data? {
+        switch event {
+        case .button(let button, let phase):
+            inputSequence += 1
+            var state = StreamingGamepadState()
+            if phase == .began {
+                if button == .leftTrigger {
+                    state.leftTrigger = 1
+                } else if button == .rightTrigger {
+                    state.rightTrigger = 1
+                } else {
+                    state.buttons.insert(button)
+                }
+            }
+            return inputPacketEncoder.gamepad(
+                sequence: inputSequence,
+                states: [state],
+                timestampMilliseconds: currentTimestampMilliseconds()
+            )
+        case .microphone, .text:
+            return nil
+        }
+    }
+
+    private func nextMetadataFrame() -> Data {
+        inputSequence += 1
+        return inputPacketEncoder.metadata(
+            sequence: inputSequence,
+            timestampMilliseconds: currentTimestampMilliseconds()
+        )
+    }
+
+    private func currentTimestampMilliseconds() -> Double {
+        Date().timeIntervalSince1970 * 1000
     }
 }

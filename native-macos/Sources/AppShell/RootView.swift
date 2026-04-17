@@ -84,13 +84,6 @@ public struct RootView: View {
                 )
 
                 ShellToolbarBadge(
-                    label: strings.engine,
-                    value: environment.streamingEngine.capabilities.supportsRumble ? strings.nativeLabel : strings.compatibilityLabel,
-                    icon: "sparkles.tv",
-                    tint: .cyan
-                )
-
-                ShellToolbarBadge(
                     label: strings.authModeTitle,
                     value: authModeLabel(strings: strings),
                     icon: "person.badge.key",

@@ -11,18 +11,18 @@ public struct ShellStrings {
     public var appSubtitle: String {
         switch language {
         case .english:
-            return "Native macOS preview"
+            return "macOS preview"
         case .simplifiedChinese:
-            return "macOS 原生预览版"
+            return "macOS 预览版"
         }
     }
 
     public var previewStackTitle: String {
         switch language {
         case .english:
-            return "Preview Stack"
+            return "Stream Status"
         case .simplifiedChinese:
-            return "预览技术栈"
+            return "串流状态"
         }
     }
 
@@ -47,18 +47,18 @@ public struct ShellStrings {
     public var nativeEngineActive: String {
         switch language {
         case .english:
-            return "Native engine active"
+            return "Ready"
         case .simplifiedChinese:
-            return "原生引擎已启用"
+            return "已就绪"
         }
     }
 
     public var compatibilityEngineActive: String {
         switch language {
         case .english:
-            return "Compatibility engine active"
+            return "Ready"
         case .simplifiedChinese:
-            return "兼容引擎已启用"
+            return "已就绪"
         }
     }
 
@@ -123,26 +123,26 @@ public struct ShellStrings {
     public var homeTitle: String { language == .english ? "Console Library" : "主机库" }
     public var homeSubtitle: String {
         language == .english
-        ? "Launch into your local Xbox devices and preview the native macOS streaming flow."
-        : "从你的本地 Xbox 设备进入，预览 macOS 原生串流流程。"
+        ? "Launch into your local Xbox devices and preview the macOS streaming flow."
+        : "从你的本地 Xbox 设备进入，预览 macOS 串流流程。"
     }
     public var availableConsoles: String { language == .english ? "Available Consoles" : "可用主机" }
     public var readyToStream: String { language == .english ? "Ready To Stream" : "可直接串流" }
-    public var previewEngine: String { language == .english ? "Preview Engine" : "预览引擎" }
+    public var previewEngine: String { language == .english ? "Stream Preview" : "串流预览" }
     public var nativeLabel: String { language == .english ? "Native" : "原生" }
     public var compatibilityLabel: String { language == .english ? "Compatibility" : "兼容层" }
     public var yourConsoles: String { language == .english ? "Your Consoles" : "你的主机" }
     public var yourConsolesSubtitle: String {
         language == .english
-        ? "Choose a device to open the current native stream preview surface."
-        : "选择一台设备，打开当前的原生串流预览界面。"
+        ? "Choose a device to open the current stream preview."
+        : "选择一台设备，打开当前的串流预览界面。"
     }
     public var loadingConsoles: String { language == .english ? "Loading Consoles..." : "正在加载主机..." }
     public var noConsoles: String { language == .english ? "No Consoles" : "没有可用主机" }
     public var noConsolesDescription: String {
         language == .english
-        ? "Connect an Xbox to start a native console stream."
-        : "连接一台 Xbox 后即可开始原生主机串流。"
+        ? "Connect an Xbox to start a console stream."
+        : "连接一台 Xbox 后即可开始主机串流。"
     }
     public var openAction: String { language == .english ? "Open" : "打开" }
     public var refreshAction: String { language == .english ? "Refresh" : "刷新" }

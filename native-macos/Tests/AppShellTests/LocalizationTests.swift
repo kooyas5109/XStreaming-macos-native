@@ -17,6 +17,18 @@ func localizationStoreDefaultsToChineseOnFirstLaunch() {
 
 @MainActor
 @Test
+func homeShellCopyDoesNotEmphasizeNativeEngine() {
+    let strings = ShellStrings(language: .simplifiedChinese)
+
+    #expect(strings.appSubtitle == "macOS 预览版")
+    #expect(strings.previewStackTitle == "串流状态")
+    #expect(strings.nativeEngineActive == "已就绪")
+    #expect(strings.homeSubtitle.contains("原生") == false)
+    #expect(strings.yourConsolesSubtitle.contains("原生") == false)
+}
+
+@MainActor
+@Test
 func localizationStoreLoadsSavedChineseLocale() throws {
     let settings = SettingsMapper.withUpdatedPreferences(
         from: .defaults,

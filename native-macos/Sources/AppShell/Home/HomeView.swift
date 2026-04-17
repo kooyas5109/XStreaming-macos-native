@@ -34,12 +34,6 @@ public struct HomeView: View {
                         icon: "bolt.horizontal.circle",
                         tint: .green
                     )
-                    ShellMetricCard(
-                        title: strings.previewEngine,
-                        value: strings.nativeLabel,
-                        icon: "sparkles.tv",
-                        tint: .cyan
-                    )
                 }
 
                 ShellPanel(

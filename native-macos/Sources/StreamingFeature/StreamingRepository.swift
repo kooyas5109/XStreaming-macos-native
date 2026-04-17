@@ -195,6 +195,32 @@ public enum LiveStreamingRepositoryError: Error, Equatable {
     case missingSessionContext(String)
     case invalidBaseURI(String)
     case exchangeResponseUnavailable(String)
+    case requestFailed(stage: String, statusCode: Int, bodySnippet: String)
+    case decodeFailed(stage: String, statusCode: Int, bodySnippet: String, underlying: String)
+    case exchangePayloadDecodeFailed(stage: String, bodySnippet: String, underlying: String)
+}
+
+extension LiveStreamingRepositoryError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .missingToken(let kind):
+            return "Missing \(kind) streaming token. Sign in again before starting a stream."
+        case .missingRefreshToken:
+            return "Missing Microsoft refresh token. Sign in again before connecting the console stream."
+        case .missingSessionContext(let sessionID):
+            return "Streaming session context was not found for \(sessionID)."
+        case .invalidBaseURI(let value):
+            return "Invalid streaming base URI: \(value)."
+        case .exchangeResponseUnavailable(let value):
+            return "Streaming exchange response was unavailable: \(value)."
+        case .requestFailed(let stage, let statusCode, let bodySnippet):
+            return "Streaming \(stage) request failed with HTTP \(statusCode): \(bodySnippet)"
+        case .decodeFailed(let stage, let statusCode, let bodySnippet, let underlying):
+            return "Streaming \(stage) response could not be decoded (HTTP \(statusCode)): \(underlying). Body: \(bodySnippet)"
+        case .exchangePayloadDecodeFailed(let stage, let bodySnippet, let underlying):
+            return "Streaming \(stage) exchange payload could not be decoded: \(underlying). Body: \(bodySnippet)"
+        }
+    }
 }
 
 public final class LiveStreamingRepository: @unchecked Sendable, StreamingRepository {
@@ -236,7 +262,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             token: context.streamingToken
         )
         let response = try await httpClient.send(request)
-        let payload = try httpClient.decode(StreamingPlayResponse.self, from: response)
+        try validate(response, stage: "play")
+        let payload = try decode(StreamingPlayResponse.self, from: response, stage: "play")
         let session = payload.asStreamingSession(kind: kind, targetID: targetID)
         sessionContexts[session.id] = StreamingSessionContext(
             kind: kind,
@@ -266,7 +293,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             token: context.streamingToken
         )
         let response = try await httpClient.send(request)
-        let payload = try httpClient.decode(StreamingStateResponse.self, from: response)
+        try validate(response, stage: "state")
+        let payload = try decode(StreamingStateResponse.self, from: response, stage: "state")
         return payload.asStreamingSession(
             id: sessionID,
             targetID: context.targetID,
@@ -290,7 +318,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             ),
             token: context.streamingToken
         )
-        _ = try await httpClient.send(request)
+        let response = try await httpClient.send(request)
+        try validate(response, stage: "connect")
         return try await refreshSession(sessionID: sessionID)
     }
 
@@ -305,7 +334,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             ),
             token: context.streamingToken
         )
-        _ = try await httpClient.send(postRequest)
+        let response = try await httpClient.send(postRequest)
+        try validate(response, stage: "sdp offer")
 
         return try await pollExchangeResponse(
             sessionID: sessionID,
@@ -327,7 +357,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             ),
             token: context.streamingToken
         )
-        _ = try await httpClient.send(postRequest)
+        let response = try await httpClient.send(postRequest)
+        try validate(response, stage: "ice candidate")
 
         let remoteCandidates: [StreamingICECandidate] = try await pollExchangeResponse(
             sessionID: sessionID,
@@ -360,7 +391,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             endpoint: StreamingEndpoints.keepAlive(kind: context.kind, sessionID: sessionID),
             token: context.streamingToken
         )
-        _ = try await httpClient.send(request)
+        let response = try await httpClient.send(request)
+        try validate(response, stage: "keepalive")
     }
 
     public func stopSession(sessionID: String) async throws {
@@ -370,7 +402,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             endpoint: StreamingEndpoints.stop(kind: context.kind, sessionID: sessionID),
             token: context.streamingToken
         )
-        _ = try await httpClient.send(request)
+        let response = try await httpClient.send(request)
+        try validate(response, stage: "stop")
     }
 
     private var sessionContexts: [String: StreamingSessionContext] = [:]
@@ -422,7 +455,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             )
         )
         let response = try await httpClient.send(request)
-        let payload = try httpClient.decode(StreamingTransferTokenResponse.self, from: response)
+        try validate(response, stage: "transfer token")
+        let payload = try decode(StreamingTransferTokenResponse.self, from: response, stage: "transfer token")
         return payload.livePassportToken
     }
 
@@ -442,11 +476,19 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
                 token: context.streamingToken
             )
             let response = try await httpClient.send(request)
+            try validate(response, stage: "\(label) poll")
 
-            if response.data.isEmpty == false,
-               let payload = try? httpClient.decode(StreamingExchangeResponse.self, from: response),
-               let exchangeResponse = payload.exchangeResponse,
-               exchangeResponse.isEmpty == false {
+            if response.data.isEmpty == false {
+                let payload = try self.decode(StreamingExchangeResponse.self, from: response, stage: "\(label) poll")
+                guard let exchangeResponse = payload.exchangeResponse,
+                      exchangeResponse.isEmpty == false
+                else {
+                    attempts += 1
+                    if attempts < maxExchangeAttempts {
+                        try await Task.sleep(nanoseconds: exchangePollIntervalNanoseconds)
+                    }
+                    continue
+                }
                 return try decode(exchangeResponse)
             }
 
@@ -460,7 +502,16 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
     }
 
     private func decodeSDPAnswer(_ value: String) throws -> StreamingSDPAnswer {
-        let payload = try JSONDecoder().decode(StreamingSDPAnswerPayload.self, from: Data(value.utf8))
+        let payload: StreamingSDPAnswerPayload
+        do {
+            payload = try JSONDecoder().decode(StreamingSDPAnswerPayload.self, from: Data(value.utf8))
+        } catch {
+            throw LiveStreamingRepositoryError.exchangePayloadDecodeFailed(
+                stage: "sdp",
+                bodySnippet: Self.snippet(value),
+                underlying: error.localizedDescription
+            )
+        }
         return payload.asDomain()
     }
 
@@ -469,10 +520,61 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             return candidates.map { $0.asDomain() }
         }
 
-        let object = try JSONDecoder().decode([String: StreamingICECandidatePayload].self, from: Data(value.utf8))
+        let object: [String: StreamingICECandidatePayload]
+        do {
+            object = try JSONDecoder().decode([String: StreamingICECandidatePayload].self, from: Data(value.utf8))
+        } catch {
+            throw LiveStreamingRepositoryError.exchangePayloadDecodeFailed(
+                stage: "ice",
+                bodySnippet: Self.snippet(value),
+                underlying: error.localizedDescription
+            )
+        }
         return object
             .sorted { $0.key < $1.key }
             .map { $0.value.asDomain() }
+    }
+
+    private func validate(_ response: HTTPResponse, stage: String) throws {
+        let statusCode = response.response.statusCode
+        guard (200...299).contains(statusCode) else {
+            throw LiveStreamingRepositoryError.requestFailed(
+                stage: stage,
+                statusCode: statusCode,
+                bodySnippet: Self.snippet(response.data)
+            )
+        }
+    }
+
+    private func decode<Response: Decodable>(
+        _ type: Response.Type,
+        from response: HTTPResponse,
+        stage: String
+    ) throws -> Response {
+        do {
+            return try httpClient.decode(type, from: response)
+        } catch {
+            throw LiveStreamingRepositoryError.decodeFailed(
+                stage: stage,
+                statusCode: response.response.statusCode,
+                bodySnippet: Self.snippet(response.data),
+                underlying: error.localizedDescription
+            )
+        }
+    }
+
+    private static func snippet(_ data: Data, limit: Int = 320) -> String {
+        snippet(String(data: data, encoding: .utf8) ?? "<non-utf8 body>", limit: limit)
+    }
+
+    private static func snippet(_ value: String, limit: Int = 320) -> String {
+        let normalized = value
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+        if normalized.count <= limit {
+            return normalized
+        }
+        return String(normalized.prefix(limit)) + "..."
     }
 }
 
@@ -917,7 +1019,7 @@ private struct StreamingPlayResponse: Decodable {
 }
 
 private struct StreamingStateResponse: Decodable {
-    let state: String
+    let state: String?
     let waitingTimeInMinutes: Int?
     let errorDetails: StreamingErrorPayload?
 

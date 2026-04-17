@@ -56,6 +56,35 @@ func liveStreamingRepositoryCreatesAndRefreshesHomeSession() async throws {
 }
 
 @Test
+func liveStreamingRepositoryReportsPlayHTTPFailuresBeforeDecoding() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 401,
+            body: "{\"error\":\"Expired\"}"
+        )
+    ])
+    let repository = LiveStreamingRepository(
+        httpClient: HTTPClient(session: session),
+        tokenStore: InMemoryTokenStore(
+            initialValue: StoredTokens(
+                xHomeStreamingToken: "expired-token",
+                xHomeBaseURI: "https://home.example.com"
+            )
+        )
+    )
+
+    await #expect(
+        throws: LiveStreamingRepositoryError.requestFailed(
+            stage: "play",
+            statusCode: 401,
+            bodySnippet: "{\"error\":\"Expired\"}"
+        )
+    ) {
+        _ = try await repository.createSession(kind: .home, targetID: "console-1")
+    }
+}
+
+@Test
 func liveStreamingRepositoryStopsHomeSession() async throws {
     let session = MockURLSession(responses: [
         MockURLSession.Response(

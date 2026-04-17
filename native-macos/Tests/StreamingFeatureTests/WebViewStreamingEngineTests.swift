@@ -98,6 +98,29 @@ func compatibilityEngineExchangesSDPOffersFromBridge() async throws {
 
     let calls = await TestBridgeSignalingClient.shared.sdpCalls
     #expect(calls == ["stream-session-1:v=0\r\ncompat-offer"])
+    #expect(engine.bridgeStatus == "Remote answer received.")
+}
+
+@Test
+@MainActor
+func compatibilityEngineRecordsBridgeStatusAndErrors() async throws {
+    let engine = WebViewStreamingEngine(
+        configuration: .preview,
+        bridgeScript: "window.nativeStreamingBridge = {};",
+        playerPage: CompatibilityPlayerPage(playerScript: "function xStreamingPlayer() {}")
+    )
+
+    try await engine.handleBridgeMessage([
+        "type": "status",
+        "payload": ["message": "Negotiating network path..."]
+    ])
+    try await engine.handleBridgeMessage([
+        "type": "error",
+        "payload": ["message": "Failed to create stream offer."]
+    ])
+
+    #expect(engine.bridgeStatus == "Negotiating network path...")
+    #expect(engine.bridgeError == "Failed to create stream offer.")
 }
 
 private actor BridgeSignalingRecorder {

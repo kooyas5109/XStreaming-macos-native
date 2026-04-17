@@ -543,7 +543,7 @@ public struct StreamContainerView: View {
         if let nativeEngine = engine as? NativeStreamingEngine {
             NativeVideoSurfaceView(renderer: nativeEngine.videoRenderer)
         } else if let webViewEngine = engine as? WebViewStreamingEngine {
-            StreamingWebView(engine: webViewEngine)
+            WebViewStreamingSurface(engine: webViewEngine)
         } else {
             let strings = ShellStrings(language: language)
             ContentUnavailableView(
@@ -746,6 +746,34 @@ public struct StreamContainerView: View {
         infoMessage = ShellStrings(language: language).sendTextSuccess
         outgoingText = ""
         showTextComposer = false
+    }
+}
+
+private struct WebViewStreamingSurface: View {
+    @ObservedObject var engine: WebViewStreamingEngine
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            StreamingWebView(engine: engine)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Label(engine.bridgeStatus, systemImage: "dot.radiowaves.left.and.right")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(.thinMaterial, in: Capsule())
+
+                if let bridgeError = engine.bridgeError {
+                    Label(bridgeError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(.thinMaterial, in: Capsule())
+                }
+            }
+            .padding(14)
+        }
     }
 }
 

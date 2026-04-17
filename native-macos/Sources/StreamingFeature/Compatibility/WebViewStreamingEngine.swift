@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import WebKit
 import SharedDomain
 
@@ -22,7 +23,7 @@ public struct WebViewStreamingConfiguration: Equatable, Sendable {
 }
 
 @MainActor
-public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
+public final class WebViewStreamingEngine: NSObject, ObservableObject, StreamingEngineProtocol {
     public let capabilities = StreamingEngineCapabilities(
         supportsVideo: true,
         supportsAudio: true,
@@ -34,6 +35,8 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
 
     public private(set) var currentSession: StreamingSession?
     public private(set) var currentURL: URL?
+    @Published public private(set) var bridgeStatus: String = "Idle"
+    @Published public private(set) var bridgeError: String?
     public let bridgeScript: String
     public let playerPage: CompatibilityPlayerPage
 
@@ -81,6 +84,8 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
         let url = try makeStreamURL(for: session)
         currentSession = session
         currentURL = url
+        bridgeStatus = "Loading player surface..."
+        bridgeError = nil
 
         if let webView {
             webView.loadHTMLString(playerPage.html(for: session), baseURL: configuration.baseURL)
@@ -89,6 +94,8 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
 
     public func start(session: StreamingSession, signaling: StreamingSignalingClient? = nil) async throws {
         self.signaling = signaling
+        bridgeStatus = "Starting player..."
+        bridgeError = nil
         if currentSession?.id != session.id {
             try await prepare(session: session)
         }
@@ -111,6 +118,8 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
         signaling = nil
         currentSession = nil
         currentURL = nil
+        bridgeStatus = "Stopped"
+        bridgeError = nil
         webView?.loadHTMLString("", baseURL: nil)
     }
 
@@ -134,6 +143,10 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
             try await handleSDPOffer(dictionary["payload"])
         case "ice-candidates":
             try await handleICECandidates(dictionary["payload"])
+        case "status":
+            bridgeStatus = bridgeMessage(from: dictionary["payload"]) ?? bridgeStatus
+        case "error":
+            bridgeError = bridgeMessage(from: dictionary["payload"]) ?? "Unknown player error"
         default:
             break
         }
@@ -150,6 +163,7 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
         }
 
         let answer = try await signaling.exchangeSDP(sessionID: session.id, offerSDP: sdp)
+        bridgeStatus = "Remote answer received."
         let script = "window.xstreamingNativePlayer?.setRemoteOffer?.(\(Self.javascriptString(answer.sdp)))"
         _ = try? await webView?.evaluateJavaScript(script)
     }
@@ -176,8 +190,20 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
             remoteCandidates = try await signaling.exchangeICE(sessionID: session.id, candidate: candidates[0].candidate)
         }
 
+        bridgeStatus = "Remote ICE candidates received."
         let script = "window.xstreamingNativePlayer?.setIceCandidates?.(\(Self.javascriptJSON(remoteCandidates)))"
         _ = try? await webView?.evaluateJavaScript(script)
+    }
+
+    private func bridgeMessage(from payload: Any?) -> String? {
+        if let message = payload as? String {
+            return message
+        }
+
+        guard let dictionary = payload as? [String: Any] else {
+            return nil
+        }
+        return dictionary["message"] as? String
     }
 
     private static func makeICECandidate(_ dictionary: [String: Any]) -> StreamingICECandidate? {

@@ -2,6 +2,7 @@ import Foundation
 import NetworkingKit
 import PersistenceKit
 import SharedDomain
+import SupportKit
 
 public protocol StreamingRepository: StreamingSignalingClient {
     func createSession(kind: StreamingKind, targetID: String) async throws -> StreamingSession
@@ -195,7 +196,7 @@ public enum LiveStreamingRepositoryError: Error, Equatable {
     case missingSessionContext(String)
     case invalidBaseURI(String)
     case exchangeResponseUnavailable(String)
-    case requestFailed(stage: String, statusCode: Int, bodySnippet: String)
+    case requestFailed(stage: String, statusCode: Int, bodySnippet: String, requestSummary: String)
     case decodeFailed(stage: String, statusCode: Int, bodySnippet: String, underlying: String)
     case exchangePayloadDecodeFailed(stage: String, bodySnippet: String, underlying: String)
 }
@@ -213,8 +214,8 @@ extension LiveStreamingRepositoryError: LocalizedError {
             return "Invalid streaming base URI: \(value)."
         case .exchangeResponseUnavailable(let value):
             return "Streaming exchange response was unavailable: \(value)."
-        case .requestFailed(let stage, let statusCode, let bodySnippet):
-            return "Streaming \(stage) request failed with HTTP \(statusCode): \(bodySnippet)"
+        case .requestFailed(let stage, let statusCode, let bodySnippet, let requestSummary):
+            return "Streaming \(stage) request failed with HTTP \(statusCode). Request: \(requestSummary). Body: \(bodySnippet)"
         case .decodeFailed(let stage, let statusCode, let bodySnippet, let underlying):
             return "Streaming \(stage) response could not be decoded (HTTP \(statusCode)): \(underlying). Body: \(bodySnippet)"
         case .exchangePayloadDecodeFailed(let stage, let bodySnippet, let underlying):
@@ -232,6 +233,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
     private let exchangePollIntervalNanoseconds: UInt64
     private let iceCandidateProcessor: StreamingICECandidateProcessor
     private let preferIPv6Candidates: Bool
+    private let logger: AppLogger
 
     public init(
         httpClient: HTTPClient = HTTPClient(),
@@ -241,7 +243,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
         maxExchangeAttempts: Int = 6,
         exchangePollIntervalNanoseconds: UInt64 = 1_000_000_000,
         iceCandidateProcessor: StreamingICECandidateProcessor = StreamingICECandidateProcessor(),
-        preferIPv6Candidates: Bool = false
+        preferIPv6Candidates: Bool = false,
+        logger: AppLogger = AppLogger(category: "Streaming")
     ) {
         self.httpClient = httpClient
         self.tokenStore = tokenStore
@@ -251,6 +254,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
         self.exchangePollIntervalNanoseconds = exchangePollIntervalNanoseconds
         self.iceCandidateProcessor = iceCandidateProcessor
         self.preferIPv6Candidates = preferIPv6Candidates
+        self.logger = logger
     }
 
     public func createSession(kind: StreamingKind, targetID: String) async throws -> StreamingSession {
@@ -261,10 +265,12 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             endpoint: endpoint,
             token: context.streamingToken
         )
+        logger.info("Starting stream play request: \(requestSummary(for: request, kind: kind, targetID: targetID, token: context.streamingToken))")
         let response = try await httpClient.send(request)
-        try validate(response, stage: "play")
+        try validate(response, request: request, stage: "play", kind: kind, targetID: targetID, token: context.streamingToken)
         let payload = try decode(StreamingPlayResponse.self, from: response, stage: "play")
         let session = payload.asStreamingSession(kind: kind, targetID: targetID)
+        logger.info("Created stream session: kind=\(kind), sessionID=\(session.id), state=\(session.state)")
         sessionContexts[session.id] = StreamingSessionContext(
             kind: kind,
             targetID: targetID,
@@ -293,7 +299,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             token: context.streamingToken
         )
         let response = try await httpClient.send(request)
-        try validate(response, stage: "state")
+        try validate(response, request: request, stage: "state", kind: context.kind, targetID: context.targetID, token: context.streamingToken)
         let payload = try decode(StreamingStateResponse.self, from: response, stage: "state")
         return payload.asStreamingSession(
             id: sessionID,
@@ -319,7 +325,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             token: context.streamingToken
         )
         let response = try await httpClient.send(request)
-        try validate(response, stage: "connect")
+        try validate(response, request: request, stage: "connect", kind: context.kind, targetID: context.targetID, token: context.streamingToken)
         return try await refreshSession(sessionID: sessionID)
     }
 
@@ -335,7 +341,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             token: context.streamingToken
         )
         let response = try await httpClient.send(postRequest)
-        try validate(response, stage: "sdp offer")
+        try validate(response, request: postRequest, stage: "sdp offer", kind: context.kind, targetID: context.targetID, token: context.streamingToken)
 
         return try await pollExchangeResponse(
             sessionID: sessionID,
@@ -358,7 +364,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             token: context.streamingToken
         )
         let response = try await httpClient.send(postRequest)
-        try validate(response, stage: "ice candidate")
+        try validate(response, request: postRequest, stage: "ice candidate", kind: context.kind, targetID: context.targetID, token: context.streamingToken)
 
         let remoteCandidates: [StreamingICECandidate] = try await pollExchangeResponse(
             sessionID: sessionID,
@@ -392,7 +398,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             token: context.streamingToken
         )
         let response = try await httpClient.send(request)
-        try validate(response, stage: "keepalive")
+        try validate(response, request: request, stage: "keepalive", kind: context.kind, targetID: context.targetID, token: context.streamingToken)
     }
 
     public func stopSession(sessionID: String) async throws {
@@ -403,7 +409,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             token: context.streamingToken
         )
         let response = try await httpClient.send(request)
-        try validate(response, stage: "stop")
+        try validate(response, request: request, stage: "stop", kind: context.kind, targetID: context.targetID, token: context.streamingToken)
     }
 
     private var sessionContexts: [String: StreamingSessionContext] = [:]
@@ -455,7 +461,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             )
         )
         let response = try await httpClient.send(request)
-        try validate(response, stage: "transfer token")
+        try validate(response, request: request, stage: "transfer token")
         let payload = try decode(StreamingTransferTokenResponse.self, from: response, stage: "transfer token")
         return payload.livePassportToken
     }
@@ -476,7 +482,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
                 token: context.streamingToken
             )
             let response = try await httpClient.send(request)
-            try validate(response, stage: "\(label) poll")
+            try validate(response, request: request, stage: "\(label) poll", kind: context.kind, targetID: context.targetID, token: context.streamingToken)
 
             if response.data.isEmpty == false {
                 let payload = try self.decode(StreamingExchangeResponse.self, from: response, stage: "\(label) poll")
@@ -535,13 +541,24 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             .map { $0.value.asDomain() }
     }
 
-    private func validate(_ response: HTTPResponse, stage: String) throws {
+    private func validate(
+        _ response: HTTPResponse,
+        request: URLRequest,
+        stage: String,
+        kind: StreamingKind? = nil,
+        targetID: String? = nil,
+        token: String? = nil
+    ) throws {
         let statusCode = response.response.statusCode
         guard (200...299).contains(statusCode) else {
+            let summary = requestSummary(for: request, kind: kind, targetID: targetID, token: token)
+            let body = Self.snippet(response.data)
+            logger.error("Streaming request failed: stage=\(stage), status=\(statusCode), \(summary), body=\(body)")
             throw LiveStreamingRepositoryError.requestFailed(
                 stage: stage,
                 statusCode: statusCode,
-                bodySnippet: Self.snippet(response.data)
+                bodySnippet: body,
+                requestSummary: summary
             )
         }
     }
@@ -575,6 +592,25 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             return normalized
         }
         return String(normalized.prefix(limit)) + "..."
+    }
+
+    private func requestSummary(
+        for request: URLRequest,
+        kind: StreamingKind? = nil,
+        targetID: String? = nil,
+        token: String? = nil
+    ) -> String {
+        let method = request.httpMethod ?? "<none>"
+        let url = request.url?.absoluteString ?? "<missing-url>"
+        let authorization = request.value(forHTTPHeaderField: "Authorization") ?? ""
+        let bearerPresent = authorization.hasPrefix("Bearer ") && authorization.count > "Bearer ".count
+        let tokenLength = token?.count ?? max(0, authorization.count - "Bearer ".count)
+        let contentType = request.value(forHTTPHeaderField: "Content-Type") ?? "<none>"
+        let deviceInfoHeader = request.value(forHTTPHeaderField: "X-MS-Device-Info") == nil ? "missing" : "present"
+        let bodyBytes = request.httpBody?.count ?? 0
+        let targetSummary = targetID.map { ", targetIDLength=\($0.count)" } ?? ""
+        let kindSummary = kind.map { ", kind=\($0.rawValue)" } ?? ""
+        return "method=\(method), url=\(url)\(kindSummary)\(targetSummary), bearer=\(bearerPresent ? "present" : "missing"), tokenLength=\(tokenLength), contentType=\(contentType), x-ms-device-info=\(deviceInfoHeader), bodyBytes=\(bodyBytes)"
     }
 }
 

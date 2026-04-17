@@ -77,7 +77,8 @@ func liveStreamingRepositoryReportsPlayHTTPFailuresBeforeDecoding() async throws
         throws: LiveStreamingRepositoryError.requestFailed(
             stage: "play",
             statusCode: 401,
-            bodySnippet: "{\"error\":\"Expired\"}"
+            bodySnippet: "{\"error\":\"Expired\"}",
+            requestSummary: "method=POST, url=https://home.example.com/v5/sessions/home/play, kind=home, targetIDLength=9, bearer=present, tokenLength=13, contentType=application/json, x-ms-device-info=present, bodyBytes=307"
         )
     ) {
         _ = try await repository.createSession(kind: .home, targetID: "console-1")

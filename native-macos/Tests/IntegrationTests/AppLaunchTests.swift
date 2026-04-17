@@ -23,6 +23,7 @@ func appLaunchSmokeSupportsPreviewNavigationAndStreamSurface() {
     let streamView = StreamContainerView(
         route: .streamCloud(id: "title-1"),
         streamingService: environment.streamingService,
+        consoleService: environment.consoleService,
         engine: environment.streamingEngine,
         router: environment.router,
         commandCenter: environment.streamCommandCenter,

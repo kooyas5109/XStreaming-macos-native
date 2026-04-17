@@ -180,6 +180,7 @@ public struct RootView: View {
             StreamContainerView(
                 route: .streamConsole(id: id),
                 streamingService: environment.streamingService,
+                consoleService: environment.consoleService,
                 engine: environment.streamingEngine,
                 router: router,
                 commandCenter: environment.streamCommandCenter,
@@ -191,6 +192,7 @@ public struct RootView: View {
             StreamContainerView(
                 route: .streamCloud(id: id),
                 streamingService: environment.streamingService,
+                consoleService: environment.consoleService,
                 engine: environment.streamingEngine,
                 router: router,
                 commandCenter: environment.streamCommandCenter,

@@ -1,3 +1,4 @@
+import ConsoleFeature
 import PersistenceKit
 import SharedDomain
 import SettingsFeature
@@ -8,6 +9,7 @@ public struct StreamContainerView: View {
     public let route: AppRouter.Route
 
     private let streamingService: StreamingService
+    private let consoleService: ConsoleService
     private let engine: any StreamingEngineProtocol
     private let router: AppRouter
     private let commandCenter: StreamCommandCenter
@@ -32,6 +34,7 @@ public struct StreamContainerView: View {
     public init(
         route: AppRouter.Route,
         streamingService: StreamingService,
+        consoleService: ConsoleService,
         engine: any StreamingEngineProtocol,
         router: AppRouter,
         commandCenter: StreamCommandCenter,
@@ -40,6 +43,7 @@ public struct StreamContainerView: View {
     ) {
         self.route = route
         self.streamingService = streamingService
+        self.consoleService = consoleService
         self.engine = engine
         self.router = router
         self.commandCenter = commandCenter
@@ -646,16 +650,18 @@ public struct StreamContainerView: View {
     }
 
     private var canSendText: Bool {
-        switch route {
-        case .streamConsole:
-            return true
-        case .streamCloud, .home, .cloud, .settings:
-            return false
-        }
+        routeConsoleID != nil
     }
 
     private var canPowerOff: Bool {
         canSendText
+    }
+
+    private var routeConsoleID: String? {
+        guard case let .streamConsole(id) = route else {
+            return nil
+        }
+        return id
     }
 
     private func registerCommands() {
@@ -732,20 +738,39 @@ public struct StreamContainerView: View {
         router.route(to: backRoute)
     }
 
+    @MainActor
     private func handleDisconnectAndPowerOff() {
-        infoMessage = ShellStrings(language: language).disconnectPowerOffSuccess
-        router.route(to: backRoute)
+        guard let consoleID = routeConsoleID else {
+            router.route(to: backRoute)
+            return
+        }
+
+        Task {
+            do {
+                try await consoleService.powerOff(consoleID: consoleID)
+                infoMessage = ShellStrings(language: language).disconnectPowerOffSuccess
+                router.route(to: backRoute)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
+    @MainActor
     private func commitOutgoingText() {
         let trimmed = outgoingText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.isEmpty == false else { return }
-        Task {
-            try? await engine.sendControlEvent(.text(trimmed))
-        }
-        infoMessage = ShellStrings(language: language).sendTextSuccess
+        guard trimmed.isEmpty == false, let consoleID = routeConsoleID else { return }
+
         outgoingText = ""
         showTextComposer = false
+        Task {
+            do {
+                try await consoleService.sendText(consoleID: consoleID, text: trimmed)
+                infoMessage = ShellStrings(language: language).sendTextSuccess
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 }
 

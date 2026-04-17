@@ -43,6 +43,8 @@ These areas are implemented, committed, and verified by tests:
 - Live mode now uses a bundled `xstreaming-player` compatibility WebRTC playback surface inside `WKWebView`
 - The compatibility surface creates the browser WebRTC offer, exchanges SDP/ICE through the native streaming service, applies remote candidates, and reports negotiation status back to the SwiftUI stream page
 - Nexus button controls now flow through phase-aware WebView input bridging for the compatibility playback surface
+- Stream microphone toggles now bridge to the compatibility player's chat channel `startMic` / `stopMic`
+- Stream text and power-off actions for console routes now call the live console command service instead of only updating demo UI state
 
 ## Implemented But Still Demo-Oriented
 
@@ -88,7 +90,8 @@ These areas have structure in place, but the real product path is not fully conn
   - Digital game actions can be translated into typed stream control events
   - Button and trigger input can now serialize into the live WebRTC input data channel packet format
   - Initial control-channel authorization and gamepad presence messages are wired
-  - Full pointer, keyboard, rumble, chat, and periodic keyframe orchestration is not fully wired
+  - Compatibility playback now supports Nexus button phases and microphone toggles through the embedded player
+  - Full native pointer, keyboard, controller, rumble, chat, and periodic keyframe orchestration is not fully wired
 - Console and catalog services
   - Console preview, cache semantics, and live xccs inventory are wired
   - Console power/text command request shapes exist, but need live interaction verification

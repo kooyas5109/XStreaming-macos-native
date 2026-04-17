@@ -113,6 +113,55 @@ func streamingServiceStartsEngineWhenRemoteSessionIsAlreadyStarted() async throw
 }
 
 @Test
+func streamingServiceStartsKeepAliveLoopAfterEngineStart() async throws {
+    let repository = TestStreamingRepository(
+        createdSession: StreamingFixtures.pendingSession,
+        refreshResponses: [StreamingFixtures.startedSession]
+    )
+    let service = StreamingService(
+        repository: repository,
+        engine: TestStreamingEngine(),
+        monitor: StreamingSessionMonitor(
+            repository: repository,
+            maxAttempts: 1,
+            pollIntervalNanoseconds: 1_000_000
+        ),
+        keepAliveIntervalNanoseconds: 1_000_000
+    )
+
+    _ = try await service.startStreaming(kind: .cloud, targetID: "title-1")
+    try await Task.sleep(nanoseconds: 5_000_000)
+
+    #expect(await repository.keepAliveCalls.isEmpty == false)
+}
+
+@Test
+func streamingServiceCancelsKeepAliveLoopWhenStopping() async throws {
+    let repository = TestStreamingRepository(
+        createdSession: StreamingFixtures.pendingSession,
+        refreshResponses: [StreamingFixtures.startedSession]
+    )
+    let service = StreamingService(
+        repository: repository,
+        engine: TestStreamingEngine(),
+        monitor: StreamingSessionMonitor(
+            repository: repository,
+            maxAttempts: 1,
+            pollIntervalNanoseconds: 1_000_000
+        ),
+        keepAliveIntervalNanoseconds: 1_000_000
+    )
+
+    _ = try await service.startStreaming(kind: .cloud, targetID: "title-1")
+    try await Task.sleep(nanoseconds: 5_000_000)
+    _ = try await service.stopStreaming(sessionID: "stream-session-1")
+    let countAfterStop = await repository.keepAliveCalls.count
+    try await Task.sleep(nanoseconds: 5_000_000)
+
+    #expect(await repository.keepAliveCalls.count == countAfterStop)
+}
+
+@Test
 func streamingServiceStopsRemoteSessionAndEngine() async throws {
     let repository = TestStreamingRepository(
         createdSession: StreamingFixtures.pendingSession,
@@ -162,6 +211,7 @@ private actor TestStreamingRepository: StreamingRepository {
     var connectCalls: [String] = []
     var sdpExchangeCalls: [String] = []
     var iceExchangeCalls: [String] = []
+    var keepAliveCalls: [String] = []
     var stopCalls: [String] = []
 
     init(
@@ -228,7 +278,9 @@ private actor TestStreamingRepository: StreamingRepository {
         ]
     }
 
-    func sendKeepAlive(sessionID: String) async throws {}
+    func sendKeepAlive(sessionID: String) async throws {
+        keepAliveCalls.append(sessionID)
+    }
 
     func stopSession(sessionID: String) async throws {
         stopCalls.append(sessionID)

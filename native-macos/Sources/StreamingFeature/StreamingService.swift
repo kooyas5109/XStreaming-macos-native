@@ -5,15 +5,19 @@ public final class StreamingService: @unchecked Sendable, StreamingSignalingClie
     private let repository: StreamingRepository
     private let engine: StreamingEngineProtocol
     private let monitor: StreamingSessionMonitor
+    private let keepAliveIntervalNanoseconds: UInt64
+    private var keepAliveTask: Task<Void, Never>?
 
     public init(
         repository: StreamingRepository,
         engine: StreamingEngineProtocol,
-        monitor: StreamingSessionMonitor? = nil
+        monitor: StreamingSessionMonitor? = nil,
+        keepAliveIntervalNanoseconds: UInt64 = 30_000_000_000
     ) {
         self.repository = repository
         self.engine = engine
         self.monitor = monitor ?? StreamingSessionMonitor(repository: repository)
+        self.keepAliveIntervalNanoseconds = keepAliveIntervalNanoseconds
     }
 
     public func startStreaming(
@@ -78,6 +82,7 @@ public final class StreamingService: @unchecked Sendable, StreamingSignalingClie
     }
 
     public func stopStreaming(sessionID: String) async throws -> StreamingStateMachine.State {
+        cancelKeepAliveLoop()
         try await repository.stopSession(sessionID: sessionID)
         await engine.stop()
         return StreamingStateMachine.reduce(.idle, event: .stopped)
@@ -91,7 +96,29 @@ public final class StreamingService: @unchecked Sendable, StreamingSignalingClie
         let preparedState = StreamingStateMachine.reduce(state, event: .enginePrepared)
 
         try await engine.start(session: session, signaling: self)
+        startKeepAliveLoop(sessionID: session.id)
         return StreamingStateMachine.reduce(preparedState, event: .engineStarted)
+    }
+
+    private func startKeepAliveLoop(sessionID: String) {
+        cancelKeepAliveLoop()
+        let repository = repository
+        let interval = keepAliveIntervalNanoseconds
+        keepAliveTask = Task {
+            while Task.isCancelled == false {
+                try? await repository.sendKeepAlive(sessionID: sessionID)
+                do {
+                    try await Task.sleep(nanoseconds: interval)
+                } catch {
+                    return
+                }
+            }
+        }
+    }
+
+    private func cancelKeepAliveLoop() {
+        keepAliveTask?.cancel()
+        keepAliveTask = nil
     }
 
     public static func preview() -> StreamingService {

@@ -34,6 +34,7 @@ These areas are implemented, committed, and verified by tests:
 - Live xhome session connect now exchanges the Microsoft refresh token for a console transfer token and posts it to `/connect`
 - Live streaming repository can exchange SDP offers and ICE candidates through the Xbox `/sdp` and `/ice` signaling endpoints
 - ICE exchange now posts browser/native-style candidate arrays, polls exchange responses, normalizes remote candidates, expands Teredo host candidates, and appends `a=end-of-candidates`
+- Streaming service now starts a keepalive loop after the engine starts and cancels it when stopping a stream
 - Native streaming engine now receives the service-level signaling client and performs a testable SDP/ICE exchange before activating the local preview pipeline
 - Stream controls now produce typed control events for Nexus, text, microphone, and mapped digital game actions
 - Stream control events now also produce stable Codable payloads and JSON frames for the WebRTC input data channel seam
@@ -70,6 +71,7 @@ These areas have structure in place, but the real product path is not fully conn
   - Session core and engine abstractions exist
   - Preview/native shell works
   - Live xhome `/play`, `/state`, `/keepalive`, and `/delete` session calls are wired
+  - Keepalive is now tied to the active stream lifecycle
   - Live xhome `/connect` transfer-token handshake is wired after `ReadyToConnect`
   - Live `/sdp` and `/ice` signaling request/response seams are wired and tested with closer parity to the original Electron flow
   - Native engine now routes startup through the SDP/ICE signaling seam, but still uses placeholder local SDP/ICE generation instead of a production WebRTC media stack

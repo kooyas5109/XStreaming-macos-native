@@ -29,6 +29,17 @@ func homeShellCopyDoesNotEmphasizeNativeEngine() {
 
 @MainActor
 @Test
+func streamShellCopyDoesNotDescribeLiveFlowAsPreview() {
+    let strings = ShellStrings(language: .simplifiedChinese)
+
+    #expect(strings.startPreviewStream == "开始串流")
+    #expect(strings.streamSubtitle.contains("真实 Xbox 串流会话"))
+    #expect(strings.streamHelpText(for: .idle) == "点击开始以创建串流会话。")
+    #expect(strings.nexusPressSuccess.contains("预览") == false)
+}
+
+@MainActor
+@Test
 func localizationStoreLoadsSavedChineseLocale() throws {
     let settings = SettingsMapper.withUpdatedPreferences(
         from: .defaults,

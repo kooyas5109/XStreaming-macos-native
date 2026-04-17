@@ -240,8 +240,8 @@ public struct ShellStrings {
 
     public var streamSubtitle: String {
         language == .english
-        ? "This is the staged native stream shell. It renders a native preview surface and drives typed session state."
-        : "这是阶段性的原生串流壳层，负责渲染原生预览界面并驱动强类型会话状态。"
+        ? "Connect a real Xbox streaming session through the compatibility WebRTC surface and typed native state."
+        : "通过兼容 WebRTC 播放面连接真实 Xbox 串流会话，并驱动类型化原生状态。"
     }
     public var back: String { language == .english ? "Back" : "返回" }
     public var engine: String { language == .english ? "Engine" : "引擎" }
@@ -252,10 +252,10 @@ public struct ShellStrings {
     public var streamSurfaceTitle: String { language == .english ? "Stream Surface" : "串流画面" }
     public var streamSurfaceSubtitle: String {
         language == .english
-        ? "Run the staged playback flow and observe route, state, and renderer changes in one place."
-        : "运行阶段性播放流程，在同一处观察路由、状态和渲染器变化。"
+        ? "Start live playback and observe session state, signaling, and player negotiation in one place."
+        : "启动真实播放，并在同一处观察会话状态、信令和播放器协商。"
     }
-    public var startPreviewStream: String { language == .english ? "Start Preview Stream" : "开始预览串流" }
+    public var startPreviewStream: String { language == .english ? "Start Stream" : "开始串流" }
     public var starting: String { language == .english ? "Starting..." : "启动中..." }
     public var stopStream: String { language == .english ? "Stop Stream" : "停止串流" }
     public var nativeSurface: String { language == .english ? "Native surface" : "原生画面" }
@@ -332,10 +332,10 @@ public struct ShellStrings {
     public var sendTextPlaceholder: String { language == .english ? "Type a short message" : "输入一段简短文本" }
     public var sendTextConfirm: String { language == .english ? "Send" : "发送" }
     public var sendTextCancel: String { language == .english ? "Cancel" : "取消" }
-    public var sendTextSuccess: String { language == .english ? "Preview text sent to the connected console." : "预览文本已发送到当前主机。" }
-    public var nexusPressSuccess: String { language == .english ? "Previewed a Nexus button press." : "已预览一次 Nexus 按键。" }
-    public var nexusLongPressSuccess: String { language == .english ? "Previewed a long Nexus button press." : "已预览一次长按 Nexus。" }
-    public var disconnectPowerOffSuccess: String { language == .english ? "Stream disconnected and preview console powered off." : "串流已断开，并已模拟主机关机。" }
+    public var sendTextSuccess: String { language == .english ? "Text command sent to the connected console." : "文本命令已发送到当前主机。" }
+    public var nexusPressSuccess: String { language == .english ? "Sent a Nexus button press." : "已发送一次 Nexus 按键。" }
+    public var nexusLongPressSuccess: String { language == .english ? "Sent a long Nexus button press." : "已发送一次长按 Nexus。" }
+    public var disconnectPowerOffSuccess: String { language == .english ? "Stream disconnected and power-off command queued." : "串流已断开，并已排队发送关机命令。" }
     public var commandMenuHint: String { language == .english ? "Menu actions are also available from the Stream menu and keyboard shortcuts." : "这些动作也可以通过菜单栏里的“串流”菜单和快捷键触发。" }
     public var codecBadgeTitle: String { language == .english ? "Codec" : "编码" }
     public var nativeMouseKeyboardBadgeTitle: String { language == .english ? "Mouse & Keyboard" : "键鼠" }
@@ -373,15 +373,15 @@ public struct ShellStrings {
     public func streamHelpText(for state: StreamingStateMachine.State) -> String {
         switch state {
         case .idle:
-            return language == .english ? "Press start to create a preview session." : "点击开始以创建一个预览会话。"
+            return language == .english ? "Press start to create a streaming session." : "点击开始以创建串流会话。"
         case .pending, .queued:
-            return language == .english ? "The preview session is provisioning." : "预览会话正在准备中。"
+            return language == .english ? "The streaming session is provisioning." : "串流会话正在准备中。"
         case .readyToConnect, .connecting:
-            return language == .english ? "The renderer is preparing the native surface." : "渲染器正在准备原生画面。"
+            return language == .english ? "The player is negotiating WebRTC playback." : "播放器正在协商 WebRTC 播放。"
         case .streaming:
-            return language == .english ? "Preview streaming is active." : "预览串流正在运行。"
+            return language == .english ? "Streaming is active." : "串流正在运行。"
         case .stopped:
-            return language == .english ? "The preview session has ended." : "预览会话已结束。"
+            return language == .english ? "The streaming session has ended." : "串流会话已结束。"
         case .failed:
             return language == .english ? "Review the error and try again." : "请检查错误信息后重试。"
         }

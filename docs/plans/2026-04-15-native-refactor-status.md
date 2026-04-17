@@ -1,6 +1,6 @@
 # Native Refactor Status Snapshot
 
-Last updated: 2026-04-16
+Last updated: 2026-04-17
 
 This document is the working status baseline for the native macOS rebuild. Its purpose is to keep a clear separation between:
 
@@ -40,6 +40,9 @@ These areas are implemented, committed, and verified by tests:
 - Stream control events now also produce stable Codable payloads and JSON frames for the WebRTC input data channel seam
 - Native input now has a tested binary input packet encoder compatible with the original `xstreaming-player` metadata and gamepad packet layout
 - Native control channel now has tested authorization, gamepad presence, and video keyframe request messages
+- Live mode now uses a bundled `xstreaming-player` compatibility WebRTC playback surface inside `WKWebView`
+- The compatibility surface creates the browser WebRTC offer, exchanges SDP/ICE through the native streaming service, applies remote candidates, and reports negotiation status back to the SwiftUI stream page
+- Nexus button controls now flow through phase-aware WebView input bridging for the compatibility playback surface
 
 ## Implemented But Still Demo-Oriented
 
@@ -76,9 +79,10 @@ These areas have structure in place, but the real product path is not fully conn
   - Keepalive is now tied to the active stream lifecycle
   - Live xhome `/connect` transfer-token handshake is wired after `ReadyToConnect`
   - Live `/sdp` and `/ice` signaling request/response seams are wired and tested with closer parity to the original Electron flow
-  - Native engine now routes startup through the SDP/ICE signaling seam, but still uses placeholder local SDP/ICE generation instead of a production WebRTC media stack
+  - Live mode now routes real playback through the compatibility WebRTC playback surface
+  - Native engine still uses placeholder local SDP/ICE generation and remains a typed seam for a later production native WebRTC SDK integration
 - Native engine can accept typed control events, build stable payloads, and write JSON frames through an injected WebRTC input data channel writer
-  - Full production streaming transport is not fully connected
+  - Full production native WebRTC transport is not fully connected
 - Input support
   - Keyboard mapping, focus coordination, and controller monitoring exist
   - Digital game actions can be translated into typed stream control events
@@ -97,7 +101,7 @@ These areas should still be treated as open:
 - Proactive Xbox token refresh before expiry during long-running sessions
 - Live console power/text operations verified against a real device
 - Real xCloud catalog and session creation flow over native repositories
-- Real SDP and ICE exchange backed by a production-capable native WebRTC engine and media renderer
+- Real SDP and ICE exchange backed by a production-capable native WebRTC engine and media renderer, replacing the current `WKWebView` compatibility playback surface
 - Binding the injected WebRTC input data channel writer to the production native WebRTC SDK data channel
 - Real controller, keyboard, mouse, rumble, and text input injection during live streaming
 - Theme system, background keepalive, FSR, and other non-core settings parity
@@ -108,8 +112,8 @@ These areas should still be treated as open:
 Today, the native app is best described as:
 
 - a strong modular native architecture baseline
-- a polished demo shell that reflects much of the original product shape
-- a partial migration with good test coverage
+- a native shell with live login, live console discovery, live xhome session setup, and a compatibility WebRTC playback surface
+- a partial migration with good test coverage and a still-open native WebRTC SDK replacement track
 - not yet a feature-complete replacement for the original Electron app
 
 ## Priority Order From This Point

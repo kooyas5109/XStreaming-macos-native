@@ -30,7 +30,9 @@ swift run --package-path native-macos XStreamingMacApp
 
 - 原生 shell 主界面
 - Home、Cloud、Settings、Stream 路由
-- 通过 `NativeStreamingEngine` 渲染的原生串流预览 surface
+- live 模式下的真实登录、真实主机列表和 xhome session 建立
+- 通过 `WebViewStreamingEngine` 承载 `xstreaming-player` 的兼容 WebRTC 播放面
+- 串流页中的 SDP/ICE 协商状态、WebRTC 播放状态和 Nexus 控制输入桥
 
 ## CI
 
@@ -51,5 +53,5 @@ GitHub Actions 工作流：
 1. 搭建原生 macOS 工作区骨架。
 2. 定义共享领域模型和持久化层。
 3. 建立认证、主机、目录和串流服务边界。
-4. 先交付原生 shell，再替换串流引擎。
+4. 接上 live 登录、主机发现、xhome 会话和兼容 WebRTC 播放面。
 5. 为原生 app 补齐 CI、集成测试和打包前置骨架。

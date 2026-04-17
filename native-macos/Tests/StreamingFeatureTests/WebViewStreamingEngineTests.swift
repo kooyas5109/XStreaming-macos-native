@@ -53,6 +53,21 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("sdp-offer"))
     #expect(html.contains("ice-candidates"))
     #expect(html.contains("setRemoteOffer"))
+    #expect(html.contains("setButton"))
+    #expect(html.contains("pressButtonStart"))
+    #expect(html.contains("pressButtonEnd"))
+}
+
+@Test
+@MainActor
+func compatibilityEngineBuildsPhaseAwareButtonScripts() {
+    let pressScript = WebViewStreamingEngine.controlScript(for: .button(.nexus, .began))
+    let releaseScript = WebViewStreamingEngine.controlScript(for: .button(.nexus, .ended))
+
+    #expect(pressScript.contains("setButton"))
+    #expect(pressScript.contains("\"Nexus\""))
+    #expect(pressScript.contains("\"began\""))
+    #expect(releaseScript.contains("\"ended\""))
 }
 
 @Test

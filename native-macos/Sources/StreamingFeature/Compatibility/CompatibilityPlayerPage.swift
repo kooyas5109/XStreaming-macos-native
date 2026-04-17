@@ -139,14 +139,17 @@ public struct CompatibilityPlayerPage: Sendable {
                 setStatus("Streaming.");
               }
             },
-            pressButton(button) {
+            setButton(button, phase) {
               if (!player) {
                 return;
               }
               const input = player.getChannelProcessor && player.getChannelProcessor("input");
               if (input && input.pressButtonStart && input.pressButtonEnd) {
-                input.pressButtonStart(button);
-                window.setTimeout(function () { input.pressButtonEnd(button); }, 120);
+                if (phase === "ended") {
+                  input.pressButtonEnd(button);
+                } else {
+                  input.pressButtonStart(button);
+                }
               }
             },
             stop() {

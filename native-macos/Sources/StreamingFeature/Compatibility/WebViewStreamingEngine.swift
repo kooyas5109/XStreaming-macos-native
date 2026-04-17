@@ -99,13 +99,11 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
     }
 
     public func sendControlEvent(_ event: StreamingControlEvent) async throws {
-        guard case let .button(button, _) = event else {
+        guard case .button = event else {
             return
         }
 
-        let buttonName = button.rawValue
-        let script = "window.xstreamingNativePlayer?.pressButton?.(\(Self.javascriptString(buttonName)))"
-        _ = try? await webView?.evaluateJavaScript(script)
+        _ = try? await webView?.evaluateJavaScript(Self.controlScript(for: event))
     }
 
     public func stop() async {
@@ -193,6 +191,14 @@ public final class WebViewStreamingEngine: NSObject, StreamingEngineProtocol {
             sdpMid: dictionary["sdpMid"] as? String,
             sdpMLineIndex: dictionary["sdpMLineIndex"] as? String
         )
+    }
+
+    static func controlScript(for event: StreamingControlEvent) -> String {
+        guard case let .button(button, phase) = event else {
+            return ""
+        }
+
+        return "window.xstreamingNativePlayer?.setButton?.(\(javascriptString(button.rawValue)), \(javascriptString(phase.rawValue)))"
     }
 
     private static func javascriptString(_ value: String) -> String {

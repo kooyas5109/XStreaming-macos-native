@@ -160,6 +160,21 @@ public struct CompatibilityPlayerPage: Sendable {
                 }
               }
             },
+            setMicrophone(active) {
+              if (!player) {
+                return;
+              }
+              const chat = player.getChannelProcessor && player.getChannelProcessor("chat");
+              if (chat && chat.startMic && chat.stopMic) {
+                if (active) {
+                  chat.startMic();
+                  setStatus("Microphone opened.");
+                } else {
+                  chat.stopMic();
+                  setStatus("Microphone closed.");
+                }
+              }
+            },
             stop() {
               if (player && player.close) {
                 player.close();

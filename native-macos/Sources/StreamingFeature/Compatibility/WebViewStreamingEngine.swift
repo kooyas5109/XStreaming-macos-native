@@ -106,11 +106,9 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
     }
 
     public func sendControlEvent(_ event: StreamingControlEvent) async throws {
-        guard case .button = event else {
-            return
-        }
-
-        _ = try? await webView?.evaluateJavaScript(Self.controlScript(for: event))
+        let script = Self.controlScript(for: event)
+        guard script.isEmpty == false else { return }
+        _ = try? await webView?.evaluateJavaScript(script)
     }
 
     public func stop() async {
@@ -220,11 +218,14 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
     }
 
     static func controlScript(for event: StreamingControlEvent) -> String {
-        guard case let .button(button, phase) = event else {
+        switch event {
+        case .button(let button, let phase):
+            return "window.xstreamingNativePlayer?.setButton?.(\(javascriptString(button.rawValue)), \(javascriptString(phase.rawValue)))"
+        case .microphone(let active):
+            return "window.xstreamingNativePlayer?.setMicrophone?.(\(active ? "true" : "false"))"
+        case .text:
             return ""
         }
-
-        return "window.xstreamingNativePlayer?.setButton?.(\(javascriptString(button.rawValue)), \(javascriptString(phase.rawValue)))"
     }
 
     private static func javascriptString(_ value: String) -> String {

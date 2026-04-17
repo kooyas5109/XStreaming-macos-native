@@ -58,6 +58,9 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("setButton"))
     #expect(html.contains("pressButtonStart"))
     #expect(html.contains("pressButtonEnd"))
+    #expect(html.contains("setMicrophone"))
+    #expect(html.contains("startMic"))
+    #expect(html.contains("stopMic"))
 }
 
 @Test
@@ -65,11 +68,14 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
 func compatibilityEngineBuildsPhaseAwareButtonScripts() {
     let pressScript = WebViewStreamingEngine.controlScript(for: .button(.nexus, .began))
     let releaseScript = WebViewStreamingEngine.controlScript(for: .button(.nexus, .ended))
+    let microphoneScript = WebViewStreamingEngine.controlScript(for: .microphone(active: true))
 
     #expect(pressScript.contains("setButton"))
     #expect(pressScript.contains("\"Nexus\""))
     #expect(pressScript.contains("\"began\""))
     #expect(releaseScript.contains("\"ended\""))
+    #expect(microphoneScript.contains("setMicrophone"))
+    #expect(microphoneScript.contains("true"))
 }
 
 @Test

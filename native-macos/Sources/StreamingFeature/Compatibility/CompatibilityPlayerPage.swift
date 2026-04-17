@@ -64,6 +64,7 @@ public struct CompatibilityPlayerPage: Sendable {
           const status = document.getElementById("status");
           let player = null;
           let remoteOfferApplied = false;
+          let localIcePublished = false;
 
           function post(type, payload) {
             const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.streamingBridge;
@@ -89,13 +90,17 @@ public struct CompatibilityPlayerPage: Sendable {
           }
 
           async function publishLocalIceCandidates() {
-            if (!player || !remoteOfferApplied) {
+            if (!player || !remoteOfferApplied || localIcePublished) {
               return;
             }
             const rawCandidates = player.getIceCandidates ? player.getIceCandidates() : [];
             const candidates = rawCandidates.map(normalizeIceCandidate).filter(candidate => candidate.candidate.length > 0);
             if (candidates.length > 0) {
+              localIcePublished = true;
+              setStatus("Sending local ICE candidates...");
               post("ice-candidates", { sessionID, candidates });
+            } else {
+              setStatus("Waiting for local ICE candidates...");
             }
           }
 
@@ -129,9 +134,12 @@ public struct CompatibilityPlayerPage: Sendable {
               player.setRemoteOffer(sdp);
               remoteOfferApplied = true;
               setStatus("Negotiating network path...");
-              window.setTimeout(publishLocalIceCandidates, 400);
-              window.setTimeout(publishLocalIceCandidates, 1200);
-              window.setTimeout(publishLocalIceCandidates, 2600);
+              window.setTimeout(publishLocalIceCandidates, 2000);
+              window.setTimeout(function () {
+                if (!localIcePublished) {
+                  publishLocalIceCandidates();
+                }
+              }, 5000);
             },
             setIceCandidates(candidates) {
               if (player && candidates && candidates.length) {
@@ -158,6 +166,7 @@ public struct CompatibilityPlayerPage: Sendable {
               }
               player = null;
               remoteOfferApplied = false;
+              localIcePublished = false;
               setStatus("Stopped.");
             }
           };

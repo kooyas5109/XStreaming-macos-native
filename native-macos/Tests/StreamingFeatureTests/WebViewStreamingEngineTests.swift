@@ -52,6 +52,8 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("new xStreamingPlayer"))
     #expect(html.contains("sdp-offer"))
     #expect(html.contains("ice-candidates"))
+    #expect(html.contains("localIcePublished"))
+    #expect(html.contains("2000"))
     #expect(html.contains("setRemoteOffer"))
     #expect(html.contains("setButton"))
     #expect(html.contains("pressButtonStart"))

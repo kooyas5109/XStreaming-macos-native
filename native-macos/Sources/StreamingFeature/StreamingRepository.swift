@@ -13,6 +13,15 @@ public protocol StreamingRepository: StreamingSignalingClient {
     func stopSession(sessionID: String) async throws
 }
 
+public extension StreamingRepository {
+    func exchangeICE(sessionID: String, candidates: [StreamingICECandidate]) async throws -> [StreamingICECandidate] {
+        guard let firstCandidate = candidates.first else {
+            return []
+        }
+        return try await exchangeICE(sessionID: sessionID, candidate: firstCandidate.candidate)
+    }
+}
+
 public struct StreamingSDPAnswer: Equatable, Sendable {
     public let messageType: String
     public let sdp: String
@@ -39,6 +48,57 @@ public struct StreamingICECandidate: Equatable, Sendable {
         self.candidate = candidate
         self.sdpMid = sdpMid
         self.sdpMLineIndex = sdpMLineIndex
+    }
+}
+
+public struct StreamingICECandidateProcessor: Sendable {
+    public init() {}
+
+    public func normalizedRemoteCandidates(
+        _ candidates: [StreamingICECandidate],
+        preferIPv6: Bool = false
+    ) -> [StreamingICECandidate] {
+        var expanded: [ParsedICECandidate] = []
+
+        for candidate in candidates where candidate.candidate != "a=end-of-candidates" {
+            if let parsed = ParsedICECandidate(candidate: candidate) {
+                if let teredo = teredoCandidate(from: parsed) {
+                    expanded.append(teredo.hostCandidate(port: "9002"))
+                    expanded.append(teredo.hostCandidate(port: teredo.port))
+                }
+                expanded.append(parsed)
+            }
+        }
+
+        if preferIPv6 {
+            expanded.sort { first, second in
+                if first.ip.contains(":") == second.ip.contains(":") {
+                    return first.ip < second.ip
+                }
+                return first.ip.contains(":") && second.ip.contains(":") == false
+            }
+        }
+
+        return expanded.enumerated().map { index, candidate in
+            candidate.rewriting(
+                foundation: index + 1,
+                priority: index == 0 ? "2130706431" : "1"
+            ).domainCandidate()
+        } + [
+            StreamingICECandidate(
+                messageType: "iceCandidate",
+                candidate: "a=end-of-candidates",
+                sdpMid: "0",
+                sdpMLineIndex: "0"
+            )
+        ]
+    }
+
+    private func teredoCandidate(from candidate: ParsedICECandidate) -> TeredoAddress? {
+        guard candidate.ip.lowercased().hasPrefix("2001:") else {
+            return nil
+        }
+        return TeredoAddress(ipv6Address: candidate.ip)
     }
 }
 
@@ -98,7 +158,7 @@ public final class PreviewStreamingRepository: @unchecked Sendable, StreamingRep
         StreamingSDPAnswer(messageType: "answer", sdp: "v=0\r\npreview-answer")
     }
 
-    public func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate] {
+    public func exchangeICE(sessionID: String, candidates: [StreamingICECandidate]) async throws -> [StreamingICECandidate] {
         [
             StreamingICECandidate(
                 messageType: "iceCandidate",
@@ -107,6 +167,20 @@ public final class PreviewStreamingRepository: @unchecked Sendable, StreamingRep
                 sdpMLineIndex: "0"
             )
         ]
+    }
+
+    public func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate] {
+        try await exchangeICE(
+            sessionID: sessionID,
+            candidates: [
+                StreamingICECandidate(
+                    messageType: "iceCandidate",
+                    candidate: candidate,
+                    sdpMid: "0",
+                    sdpMLineIndex: "0"
+                )
+            ]
+        )
     }
 
     public func sendKeepAlive(sessionID: String) async throws {}
@@ -129,6 +203,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
     private let defaultCloudBaseURI: String
     private let maxExchangeAttempts: Int
     private let exchangePollIntervalNanoseconds: UInt64
+    private let iceCandidateProcessor: StreamingICECandidateProcessor
+    private let preferIPv6Candidates: Bool
 
     public init(
         httpClient: HTTPClient = HTTPClient(),
@@ -136,7 +212,9 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
         defaultHomeBaseURI: String = "https://xhome.gssv-play-prod.xboxlive.com",
         defaultCloudBaseURI: String = "https://xgpuweb.gssv-play-prod.xboxlive.com",
         maxExchangeAttempts: Int = 6,
-        exchangePollIntervalNanoseconds: UInt64 = 1_000_000_000
+        exchangePollIntervalNanoseconds: UInt64 = 1_000_000_000,
+        iceCandidateProcessor: StreamingICECandidateProcessor = StreamingICECandidateProcessor(),
+        preferIPv6Candidates: Bool = false
     ) {
         self.httpClient = httpClient
         self.tokenStore = tokenStore
@@ -144,6 +222,8 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
         self.defaultCloudBaseURI = defaultCloudBaseURI
         self.maxExchangeAttempts = maxExchangeAttempts
         self.exchangePollIntervalNanoseconds = exchangePollIntervalNanoseconds
+        self.iceCandidateProcessor = iceCandidateProcessor
+        self.preferIPv6Candidates = preferIPv6Candidates
     }
 
     public func createSession(kind: StreamingKind, targetID: String) async throws -> StreamingSession {
@@ -235,25 +315,40 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
         )
     }
 
-    public func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate] {
+    public func exchangeICE(sessionID: String, candidates: [StreamingICECandidate]) async throws -> [StreamingICECandidate] {
         let context = try requireSessionContext(sessionID)
         let postRequest = try RequestBuilder.make(
             baseURL: context.baseURL,
             endpoint: try StreamingEndpoints.iceCandidate(
                 kind: context.kind,
                 sessionID: sessionID,
-                candidate: candidate
+                candidates: candidates
             ),
             token: context.streamingToken
         )
         _ = try await httpClient.send(postRequest)
 
-        return try await pollExchangeResponse(
+        let remoteCandidates: [StreamingICECandidate] = try await pollExchangeResponse(
             sessionID: sessionID,
             label: "ice",
             endpoint: StreamingEndpoints.ice(kind: context.kind, sessionID: sessionID),
             context: context,
             decode: decodeICECandidates
+        )
+        return iceCandidateProcessor.normalizedRemoteCandidates(remoteCandidates, preferIPv6: preferIPv6Candidates)
+    }
+
+    public func exchangeICE(sessionID: String, candidate: String) async throws -> [StreamingICECandidate] {
+        try await exchangeICE(
+            sessionID: sessionID,
+            candidates: [
+                StreamingICECandidate(
+                    messageType: "iceCandidate",
+                    candidate: candidate,
+                    sdpMid: "0",
+                    sdpMLineIndex: "0"
+                )
+            ]
         )
     }
 
@@ -441,8 +536,8 @@ private enum StreamingEndpoints {
         BasicEndpoint(path: "/v5/sessions/\(kind.pathComponent)/\(sessionID)/ice")
     }
 
-    static func iceCandidate(kind: StreamingKind, sessionID: String, candidate: String) throws -> BasicEndpoint {
-        let body = try JSONEncoder().encode(StreamingICECandidateRequest(candidate: candidate))
+    static func iceCandidate(kind: StreamingKind, sessionID: String, candidates: [StreamingICECandidate]) throws -> BasicEndpoint {
+        let body = try JSONEncoder().encode(StreamingICECandidateRequest(candidates: candidates))
         return BasicEndpoint(
             path: "/v5/sessions/\(kind.pathComponent)/\(sessionID)/ice",
             method: .post,
@@ -573,7 +668,23 @@ private struct StreamingSDPOfferRequest: Encodable {
 
 private struct StreamingICECandidateRequest: Encodable {
     let messageType = "iceCandidate"
-    let candidate: String
+    let candidate: [Payload]
+
+    init(candidates: [StreamingICECandidate]) {
+        candidate = candidates.map(Payload.init(candidate:))
+    }
+
+    struct Payload: Encodable {
+        let candidate: String
+        let sdpMLineIndex: FlexibleIntegerString?
+        let sdpMid: String?
+
+        init(candidate: StreamingICECandidate) {
+            self.candidate = candidate.candidate
+            self.sdpMLineIndex = candidate.sdpMLineIndex.map(FlexibleIntegerString.init(value:))
+            self.sdpMid = candidate.sdpMid
+        }
+    }
 }
 
 private struct StreamingTransferTokenResponse: Decodable {
@@ -623,6 +734,152 @@ private struct FlexibleString: Decodable {
         } else {
             value = String(try container.decode(Int.self))
         }
+    }
+}
+
+private struct FlexibleIntegerString: Encodable {
+    let value: String
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let intValue = Int(value) {
+            try container.encode(intValue)
+        } else {
+            try container.encode(value)
+        }
+    }
+}
+
+private struct ParsedICECandidate: Equatable {
+    let messageType: String
+    let foundation: String
+    let component: String
+    let transport: String
+    let priority: String
+    let ip: String
+    let port: String
+    let remainder: String
+    let sdpMid: String?
+    let sdpMLineIndex: String?
+
+    init?(candidate: StreamingICECandidate) {
+        let raw = candidate.candidate
+        let normalized = raw.hasPrefix("a=") ? String(raw.dropFirst(2)) : raw
+        let parts = normalized.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        guard parts.count >= 8, parts[0].hasPrefix("candidate:") else {
+            return nil
+        }
+
+        foundation = String(parts[0].dropFirst("candidate:".count))
+        component = parts[1]
+        transport = parts[2]
+        priority = parts[3]
+        ip = parts[4]
+        port = parts[5]
+        remainder = parts.dropFirst(6).joined(separator: " ")
+        messageType = candidate.messageType
+        sdpMid = candidate.sdpMid
+        sdpMLineIndex = candidate.sdpMLineIndex
+    }
+
+    init(
+        messageType: String,
+        foundation: String,
+        component: String,
+        transport: String,
+        priority: String,
+        ip: String,
+        port: String,
+        remainder: String,
+        sdpMid: String?,
+        sdpMLineIndex: String?
+    ) {
+        self.messageType = messageType
+        self.foundation = foundation
+        self.component = component
+        self.transport = transport
+        self.priority = priority
+        self.ip = ip
+        self.port = port
+        self.remainder = remainder
+        self.sdpMid = sdpMid
+        self.sdpMLineIndex = sdpMLineIndex
+    }
+
+    func rewriting(foundation: Int, priority: String) -> ParsedICECandidate {
+        ParsedICECandidate(
+            messageType: messageType,
+            foundation: "\(foundation)",
+            component: component,
+            transport: transport,
+            priority: priority,
+            ip: ip,
+            port: port,
+            remainder: remainder,
+            sdpMid: sdpMid,
+            sdpMLineIndex: sdpMLineIndex
+        )
+    }
+
+    func domainCandidate() -> StreamingICECandidate {
+        StreamingICECandidate(
+            messageType: messageType,
+            candidate: "a=candidate:\(foundation) \(component) \(transport) \(priority) \(ip) \(port) \(remainder)",
+            sdpMid: sdpMid,
+            sdpMLineIndex: sdpMLineIndex
+        )
+    }
+}
+
+private struct TeredoAddress: Equatable {
+    let clientIPv4: String
+    let port: String
+
+    init?(ipv6Address: String) {
+        let expanded = Self.expandIPv6(ipv6Address)
+        guard expanded.count == 8 else {
+            return nil
+        }
+
+        let obfuscatedPort = UInt16(expanded[5], radix: 16) ?? 0
+        port = "\(~obfuscatedPort)"
+
+        let clientHigh = UInt16(expanded[6], radix: 16) ?? 0
+        let clientLow = UInt16(expanded[7], radix: 16) ?? 0
+        let bytes = [
+            UInt8((clientHigh >> 8) & 0xff),
+            UInt8(clientHigh & 0xff),
+            UInt8((clientLow >> 8) & 0xff),
+            UInt8(clientLow & 0xff)
+        ].map { ~($0) }
+        clientIPv4 = bytes.map(String.init).joined(separator: ".")
+    }
+
+    func hostCandidate(port: String) -> ParsedICECandidate {
+        ParsedICECandidate(
+            messageType: "iceCandidate",
+            foundation: "0",
+            component: "1",
+            transport: "UDP",
+            priority: "1",
+            ip: clientIPv4,
+            port: port,
+            remainder: "typ host",
+            sdpMid: "0",
+            sdpMLineIndex: "0"
+        )
+    }
+
+    private static func expandIPv6(_ address: String) -> [String] {
+        if address.contains("::") == false {
+            return address.split(separator: ":").map { String($0) }
+        }
+
+        let sides = address.components(separatedBy: "::")
+        let left = sides.first?.split(separator: ":").map(String.init) ?? []
+        let right = sides.dropFirst().first?.split(separator: ":").map(String.init) ?? []
+        let missing = max(0, 8 - left.count - right.count)
+        return left + Array(repeating: "0", count: missing) + right
     }
 }
 

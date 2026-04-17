@@ -249,7 +249,13 @@ func liveStreamingRepositoryExchangesIceCandidateForRemoteCandidates() async thr
     #expect(candidates == [
         StreamingICECandidate(
             messageType: "iceCandidate",
-            candidate: "a=candidate:2 1 UDP 1 10.0.0.2 9002 typ host",
+            candidate: "a=candidate:1 1 UDP 2130706431 10.0.0.2 9002 typ host",
+            sdpMid: "0",
+            sdpMLineIndex: "0"
+        ),
+        StreamingICECandidate(
+            messageType: "iceCandidate",
+            candidate: "a=end-of-candidates",
             sdpMid: "0",
             sdpMLineIndex: "0"
         )
@@ -262,7 +268,30 @@ func liveStreamingRepositoryExchangesIceCandidateForRemoteCandidates() async thr
     ])
     let bodies = await session.requestBodies
     #expect(bodies[1].contains("\"messageType\":\"iceCandidate\""))
+    #expect(bodies[1].contains("\"candidate\":["))
     #expect(bodies[1].contains("\"candidate\":\"a=candidate:1 1 UDP 1 10.0.0.1 9002 typ host\""))
+    #expect(bodies[1].contains("\"sdpMLineIndex\":0"))
+    #expect(bodies[1].contains("\"sdpMid\":\"0\""))
+}
+
+@Test
+func iceCandidateProcessorExpandsTeredoCandidatesAndAddsEndMarker() {
+    let processor = StreamingICECandidateProcessor()
+    let candidates = processor.normalizedRemoteCandidates([
+        StreamingICECandidate(
+            messageType: "iceCandidate",
+            candidate: "a=candidate:5 1 UDP 1 2001:0000:4136:e378:8000:63bf:3fff:fdd2 5000 typ host",
+            sdpMid: "0",
+            sdpMLineIndex: "0"
+        )
+    ])
+
+    #expect(candidates.map(\.candidate) == [
+        "a=candidate:1 1 UDP 2130706431 192.0.2.45 9002 typ host",
+        "a=candidate:2 1 UDP 1 192.0.2.45 40000 typ host",
+        "a=candidate:3 1 UDP 1 2001:0000:4136:e378:8000:63bf:3fff:fdd2 5000 typ host",
+        "a=end-of-candidates"
+    ])
 }
 
 private actor RequestCapture {

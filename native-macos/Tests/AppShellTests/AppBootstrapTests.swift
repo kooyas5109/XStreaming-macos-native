@@ -1,4 +1,5 @@
 import Testing
+import PersistenceKit
 @testable import AppShell
 
 @MainActor
@@ -16,4 +17,5 @@ func liveAppEnvironmentUsesCompatibilityStreamingSurface() throws {
 
     #expect(environment.authMode == .live)
     #expect(String(describing: type(of: environment.streamingEngine)).contains("WebViewStreamingEngine"))
+    #expect(environment.settingsStore is UserDefaultsSettingsStore)
 }

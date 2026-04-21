@@ -60,6 +60,7 @@ public struct AppEnvironment: Sendable {
         let repository: StreamingRepository
         let authRepository: DefaultAuthRepository
         let tokenStore: TokenStoreProtocol
+        let settingsStore: SettingsStoreProtocol
 
         switch mode {
         case .preview:
@@ -67,11 +68,13 @@ public struct AppEnvironment: Sendable {
             authRepository = DefaultAuthRepository(provider: PreviewXboxAuthProvider())
             tokenStore = InMemoryTokenStore()
             repository = PreviewStreamingRepository()
+            settingsStore = InMemorySettingsStore()
         case .live:
             streamingEngine = try! WebViewStreamingEngine(configuration: .preview)
             authRepository = DefaultAuthRepository(provider: LiveXboxAuthProvider())
             tokenStore = KeychainTokenStore()
             repository = LiveStreamingRepository(tokenStore: tokenStore)
+            settingsStore = UserDefaultsSettingsStore()
         }
 
         return AppEnvironment(
@@ -85,7 +88,7 @@ public struct AppEnvironment: Sendable {
             ),
             consoleService: mode == .live ? .live(tokenStore: tokenStore) : .preview(),
             catalogService: .preview(),
-            settingsStore: InMemorySettingsStore(),
+            settingsStore: settingsStore,
             streamingService: StreamingService(
                 repository: repository,
                 engine: streamingEngine,

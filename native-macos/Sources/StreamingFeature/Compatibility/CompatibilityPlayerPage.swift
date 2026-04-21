@@ -64,7 +64,8 @@ public struct CompatibilityPlayerPage: Sendable {
           const status = document.getElementById("status");
           let player = null;
           let remoteOfferApplied = false;
-          let localIcePublished = false;
+          let connected = false;
+          const publishedLocalCandidates = new Set();
 
           function post(type, payload) {
             const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.streamingBridge;
@@ -80,6 +81,29 @@ public struct CompatibilityPlayerPage: Sendable {
             post("status", { sessionID, message });
           }
 
+          function emitDiagnostic(label) {
+            const pc = player && player._webrtcClient;
+            const videos = Array.from(document.querySelectorAll("video")).map(function (video) {
+              return {
+                readyState: video.readyState,
+                paused: video.paused,
+                muted: video.muted,
+                width: video.videoWidth,
+                height: video.videoHeight
+              };
+            });
+            post("diagnostic", {
+              sessionID,
+              message: label,
+              connectionState: pc ? pc.connectionState : "unavailable",
+              iceConnectionState: pc ? pc.iceConnectionState : "unavailable",
+              iceGatheringState: pc ? pc.iceGatheringState : "unavailable",
+              localCandidatesSent: publishedLocalCandidates.size,
+              videoCount: videos.length,
+              videos
+            });
+          }
+
           function normalizeIceCandidate(candidate) {
             return {
               messageType: "iceCandidate",
@@ -87,6 +111,61 @@ public struct CompatibilityPlayerPage: Sendable {
               sdpMid: candidate.sdpMid || "0",
               sdpMLineIndex: String(candidate.sdpMLineIndex ?? 0)
             };
+          }
+
+          function candidateKey(candidate) {
+            return [
+              candidate.candidate || "",
+              candidate.sdpMid || "0",
+              String(candidate.sdpMLineIndex ?? 0)
+            ].join("|");
+          }
+
+          function observeVideoElement(video) {
+            if (!video || video.dataset.nativeObserved === "true") {
+              return;
+            }
+            video.dataset.nativeObserved = "true";
+            video.autoplay = true;
+            video.playsInline = true;
+            video.addEventListener("loadedmetadata", function () {
+              emitDiagnostic("video loadedmetadata");
+            });
+            video.addEventListener("playing", function () {
+              setStatus("Streaming.");
+              emitDiagnostic("video playing");
+            });
+            video.addEventListener("resize", function () {
+              emitDiagnostic("video resize");
+            });
+            video.addEventListener("waiting", function () {
+              emitDiagnostic("video waiting");
+            });
+            video.addEventListener("stalled", function () {
+              emitDiagnostic("video stalled");
+            });
+            video.addEventListener("error", function () {
+              emitDiagnostic("video error");
+            });
+            const playResult = video.play && video.play();
+            if (playResult && playResult.catch) {
+              playResult.catch(function (error) {
+                post("error", { sessionID, message: "Video autoplay failed: " + String(error) });
+              });
+            }
+          }
+
+          function observeVideoHolder() {
+            const holder = document.getElementById("videoHolder");
+            if (!holder) {
+              return;
+            }
+            Array.from(holder.querySelectorAll("video")).forEach(observeVideoElement);
+            const observer = new MutationObserver(function () {
+              Array.from(holder.querySelectorAll("video")).forEach(observeVideoElement);
+              emitDiagnostic("video holder changed");
+            });
+            observer.observe(holder, { childList: true, subtree: true });
           }
 
           function playerConstructor() {
@@ -101,18 +180,36 @@ public struct CompatibilityPlayerPage: Sendable {
           }
 
           async function publishLocalIceCandidates() {
-            if (!player || !remoteOfferApplied || localIcePublished) {
+            if (!player || !remoteOfferApplied || connected) {
               return;
             }
             const rawCandidates = player.getIceCandidates ? player.getIceCandidates() : [];
-            const candidates = rawCandidates.map(normalizeIceCandidate).filter(candidate => candidate.candidate.length > 0);
+            const candidates = rawCandidates
+              .map(normalizeIceCandidate)
+              .filter(function (candidate) {
+                if (candidate.candidate.length === 0) {
+                  return false;
+                }
+                const key = candidateKey(candidate);
+                if (publishedLocalCandidates.has(key)) {
+                  return false;
+                }
+                publishedLocalCandidates.add(key);
+                return true;
+              });
             if (candidates.length > 0) {
-              localIcePublished = true;
-              setStatus("Sending local ICE candidates...");
+              setStatus("Sending " + candidates.length + " local ICE candidates...");
               post("ice-candidates", { sessionID, candidates });
             } else {
               setStatus("Waiting for local ICE candidates...");
             }
+            emitDiagnostic("local ICE publish attempt");
+          }
+
+          function scheduleIcePublishing() {
+            [0, 500, 1000, 2000, 4000, 7000, 10000].forEach(function (delay) {
+              window.setTimeout(publishLocalIceCandidates, delay);
+            });
           }
 
           window.xstreamingNativePlayer = {
@@ -132,10 +229,31 @@ public struct CompatibilityPlayerPage: Sendable {
                   input_mousekeyboard: false,
                   input_legacykeyboard: true
                 });
+                observeVideoHolder();
+                if (player.setConnectFailHandler) {
+                  player.setConnectFailHandler(function () {
+                    setStatus("WebRTC connection failed.");
+                    post("error", { sessionID, message: "WebRTC connection failed before media started." });
+                    emitDiagnostic("connection failed");
+                  });
+                }
+                if (player.getEventBus) {
+                  player.getEventBus().on("connectionstate", function (event) {
+                    const state = event && event.state ? event.state : "unknown";
+                    if (state === "connected") {
+                      connected = true;
+                      setStatus("Connected. Waiting for video...");
+                    } else {
+                      setStatus("WebRTC " + state + "...");
+                    }
+                    emitDiagnostic("connectionstate " + state);
+                  });
+                }
                 player.bind({});
                 const offer = await player.createOffer();
                 post("sdp-offer", { sessionID, sdp: offer.sdp || "" });
                 setStatus("Waiting for console answer...");
+                emitDiagnostic("local offer created");
               } catch (error) {
                 setStatus("Failed to create stream offer.");
                 post("error", { sessionID, message: String(error) });
@@ -149,17 +267,14 @@ public struct CompatibilityPlayerPage: Sendable {
               player.setRemoteOffer(sdp);
               remoteOfferApplied = true;
               setStatus("Negotiating network path...");
-              window.setTimeout(publishLocalIceCandidates, 2000);
-              window.setTimeout(function () {
-                if (!localIcePublished) {
-                  publishLocalIceCandidates();
-                }
-              }, 5000);
+              emitDiagnostic("remote answer applied");
+              scheduleIcePublishing();
             },
             setIceCandidates(candidates) {
               if (player && candidates && candidates.length) {
                 player.setIceCandidates(candidates);
-                setStatus("Streaming.");
+                setStatus("Remote ICE applied. Waiting for media...");
+                emitDiagnostic("remote ICE applied");
               }
             },
             setButton(button, phase) {
@@ -196,7 +311,8 @@ public struct CompatibilityPlayerPage: Sendable {
               }
               player = null;
               remoteOfferApplied = false;
-              localIcePublished = false;
+              connected = false;
+              publishedLocalCandidates.clear();
               setStatus("Stopped.");
             }
           };

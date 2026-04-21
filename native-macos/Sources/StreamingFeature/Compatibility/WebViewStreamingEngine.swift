@@ -145,6 +145,8 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
             bridgeStatus = bridgeMessage(from: dictionary["payload"]) ?? bridgeStatus
         case "error":
             bridgeError = bridgeMessage(from: dictionary["payload"]) ?? "Unknown player error"
+        case "diagnostic":
+            bridgeStatus = diagnosticMessage(from: dictionary["payload"]) ?? bridgeStatus
         default:
             break
         }
@@ -202,6 +204,29 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
             return nil
         }
         return dictionary["message"] as? String
+    }
+
+    private func diagnosticMessage(from payload: Any?) -> String? {
+        guard let dictionary = payload as? [String: Any] else {
+            return nil
+        }
+
+        let message = dictionary["message"] as? String ?? "diagnostic"
+        let connection = dictionary["connectionState"] as? String ?? "unknown"
+        let ice = dictionary["iceConnectionState"] as? String ?? "unknown"
+        let videoCount = dictionary["videoCount"] as? Int ?? 0
+        let localCandidates = dictionary["localCandidatesSent"] as? Int ?? 0
+        let firstVideo = (dictionary["videos"] as? [[String: Any]])?.first
+        let readyState = firstVideo?["readyState"] as? Int
+        let size: String
+        if let width = firstVideo?["width"] as? Int,
+           let height = firstVideo?["height"] as? Int {
+            size = "\(width)x\(height)"
+        } else {
+            size = "none"
+        }
+        let ready = readyState.map(String.init) ?? "none"
+        return "\(message) | pc=\(connection) ice=\(ice) candidates=\(localCandidates) videos=\(videoCount) ready=\(ready) size=\(size)"
     }
 
     private static func makeICECandidate(_ dictionary: [String: Any]) -> StreamingICECandidate? {

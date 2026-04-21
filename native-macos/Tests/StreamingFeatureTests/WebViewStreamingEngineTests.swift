@@ -56,7 +56,11 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("xStreamingPlayer constructor is unavailable."))
     #expect(html.contains("sdp-offer"))
     #expect(html.contains("ice-candidates"))
-    #expect(html.contains("localIcePublished"))
+    #expect(html.contains("publishedLocalCandidates"))
+    #expect(html.contains("connectionstate"))
+    #expect(html.contains("video loadedmetadata"))
+    #expect(html.contains("Remote ICE applied. Waiting for media..."))
+    #expect(html.contains("[0, 500, 1000, 2000, 4000, 7000, 10000]"))
     #expect(html.contains("2000"))
     #expect(html.contains("setRemoteOffer"))
     #expect(html.contains("setButton"))
@@ -133,6 +137,36 @@ func compatibilityEngineRecordsBridgeStatusAndErrors() async throws {
 
     #expect(engine.bridgeStatus == "Negotiating network path...")
     #expect(engine.bridgeError == "Failed to create stream offer.")
+}
+
+@Test
+@MainActor
+func compatibilityEngineSummarizesBridgeDiagnostics() async throws {
+    let engine = WebViewStreamingEngine(
+        configuration: .preview,
+        bridgeScript: "window.nativeStreamingBridge = {};",
+        playerPage: CompatibilityPlayerPage(playerScript: "function xStreamingPlayer() {}")
+    )
+
+    try await engine.handleBridgeMessage([
+        "type": "diagnostic",
+        "payload": [
+            "message": "remote ICE applied",
+            "connectionState": "connecting",
+            "iceConnectionState": "checking",
+            "localCandidatesSent": 2,
+            "videoCount": 1,
+            "videos": [
+                [
+                    "readyState": 0,
+                    "width": 0,
+                    "height": 0
+                ]
+            ]
+        ]
+    ])
+
+    #expect(engine.bridgeStatus == "remote ICE applied | pc=connecting ice=checking candidates=2 videos=1 ready=0 size=0x0")
 }
 
 private actor BridgeSignalingRecorder {

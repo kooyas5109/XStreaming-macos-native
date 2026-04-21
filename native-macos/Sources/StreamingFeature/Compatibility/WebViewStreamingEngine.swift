@@ -40,6 +40,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
     @Published public private(set) var bridgeError: String?
     public let bridgeScript: String
     public let playerPage: CompatibilityPlayerPage
+    public private(set) var playerConfiguration = CompatibilityPlayerConfiguration()
 
     private let configuration: WebViewStreamingConfiguration
     private let logger: AppLogger
@@ -70,6 +71,13 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         try! WebViewStreamingEngine(configuration: .preview)
     }
 
+    public func configure(settings: AppSettings) async {
+        playerConfiguration = CompatibilityPlayerConfiguration(settings: settings)
+        let turnMode = playerConfiguration.turnServer.url.isEmpty ? "default" : "custom"
+        let videoFormat = playerConfiguration.videoFormat.isEmpty ? "default" : playerConfiguration.videoFormat
+        logger.info("Configured WebView player: turn=\(turnMode), videoFormat=\(videoFormat)")
+    }
+
     public func attach(webView: WKWebView) {
         self.webView = webView
 
@@ -92,7 +100,10 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         bridgeError = nil
 
         if let webView {
-            webView.loadHTMLString(playerPage.html(for: session), baseURL: configuration.baseURL)
+            webView.loadHTMLString(
+                playerPage.html(for: session, configuration: playerConfiguration),
+                baseURL: configuration.baseURL
+            )
         }
     }
 

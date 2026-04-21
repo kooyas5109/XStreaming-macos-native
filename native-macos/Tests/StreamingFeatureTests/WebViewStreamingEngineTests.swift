@@ -71,12 +71,101 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("[0, 500, 1000, 2000, 4000, 7000, 10000]"))
     #expect(html.contains("2000"))
     #expect(html.contains("setRemoteOffer"))
+    #expect(html.contains("nativePlayerConfiguration.turnServer"))
+    #expect(html.contains("player.bind({ turnServer: nativePlayerConfiguration.turnServer })"))
+    #expect(html.contains("player bound with TURN server"))
+    #expect(html.contains("player bound without TURN server"))
+    #expect(html.contains("setVideoFormat"))
     #expect(html.contains("setButton"))
     #expect(html.contains("pressButtonStart"))
     #expect(html.contains("pressButtonEnd"))
     #expect(html.contains("setMicrophone"))
     #expect(html.contains("startMic"))
     #expect(html.contains("stopMic"))
+}
+
+@Test
+func compatibilityPlayerPageInjectsTurnServerConfiguration() throws {
+    let page = CompatibilityPlayerPage(playerScript: "function xStreamingPlayer() {}")
+    let html = page.html(
+        for: StreamingFixtures.startedSession,
+        configuration: CompatibilityPlayerConfiguration(
+            turnServer: TurnServerConfiguration(
+                url: "turn:relay.example.com",
+                username: "relay-user",
+                credential: "relay-secret"
+            ),
+            videoFormat: "H264"
+        )
+    )
+
+    #expect(html.contains("\"url\":\"turn:relay.example.com\""))
+    #expect(html.contains("\"username\":\"relay-user\""))
+    #expect(html.contains("\"credential\":\"relay-secret\""))
+    #expect(html.contains("\"videoFormat\":\"H264\""))
+}
+
+@Test
+@MainActor
+func compatibilityEngineAppliesSettingsToPlayerConfiguration() async {
+    let engine = WebViewStreamingEngine(
+        configuration: .preview,
+        bridgeScript: "window.nativeStreamingBridge = {};",
+        playerPage: CompatibilityPlayerPage(playerScript: "function xStreamingPlayer() {}")
+    )
+    let settings = AppSettings(
+        locale: AppSettings.defaults.locale,
+        useMSAL: AppSettings.defaults.useMSAL,
+        fullscreen: AppSettings.defaults.fullscreen,
+        resolution: AppSettings.defaults.resolution,
+        xhomeAutoConnectServerID: AppSettings.defaults.xhomeAutoConnectServerID,
+        xhomeBitrateMode: AppSettings.defaults.xhomeBitrateMode,
+        xhomeBitrate: AppSettings.defaults.xhomeBitrate,
+        xcloudBitrateMode: AppSettings.defaults.xcloudBitrateMode,
+        xcloudBitrate: AppSettings.defaults.xcloudBitrate,
+        audioBitrateMode: AppSettings.defaults.audioBitrateMode,
+        audioBitrate: AppSettings.defaults.audioBitrate,
+        enableAudioControl: AppSettings.defaults.enableAudioControl,
+        enableAudioRumble: AppSettings.defaults.enableAudioRumble,
+        audioRumbleThreshold: AppSettings.defaults.audioRumbleThreshold,
+        preferredGameLanguage: AppSettings.defaults.preferredGameLanguage,
+        forceRegionIP: AppSettings.defaults.forceRegionIP,
+        codec: AppSettings.defaults.codec,
+        pollingRate: AppSettings.defaults.pollingRate,
+        coop: AppSettings.defaults.coop,
+        vibration: AppSettings.defaults.vibration,
+        vibrationMode: AppSettings.defaults.vibrationMode,
+        gamepadKernel: AppSettings.defaults.gamepadKernel,
+        gamepadMix: AppSettings.defaults.gamepadMix,
+        gamepadIndex: AppSettings.defaults.gamepadIndex,
+        deadZone: AppSettings.defaults.deadZone,
+        edgeCompensation: AppSettings.defaults.edgeCompensation,
+        forceTriggerRumble: AppSettings.defaults.forceTriggerRumble,
+        powerOn: AppSettings.defaults.powerOn,
+        videoFormat: "H265",
+        virtualGamepadOpacity: AppSettings.defaults.virtualGamepadOpacity,
+        ipv6: AppSettings.defaults.ipv6,
+        enableNativeMouseKeyboard: AppSettings.defaults.enableNativeMouseKeyboard,
+        mouseSensitive: AppSettings.defaults.mouseSensitive,
+        performanceStyle: AppSettings.defaults.performanceStyle,
+        turnServer: TurnServerConfiguration(
+            url: "turn:relay.example.com",
+            username: "relay-user",
+            credential: "relay-secret"
+        ),
+        backgroundKeepalive: AppSettings.defaults.backgroundKeepalive,
+        inputMouseKeyboardMapping: AppSettings.defaults.inputMouseKeyboardMapping,
+        displayOptions: AppSettings.defaults.displayOptions,
+        useVulkan: AppSettings.defaults.useVulkan,
+        fsr: AppSettings.defaults.fsr,
+        fsrSharpness: AppSettings.defaults.fsrSharpness,
+        debug: AppSettings.defaults.debug
+    )
+
+    await engine.configure(settings: settings)
+
+    #expect(engine.playerConfiguration.videoFormat == "H265")
+    #expect(engine.playerConfiguration.turnServer.url == "turn:relay.example.com")
 }
 
 @Test

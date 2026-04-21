@@ -568,6 +568,7 @@ public struct StreamContainerView: View {
                 WindowControls.enterFullscreenIfNeeded()
             }
 
+            await engine.configure(settings: settings)
             let request = streamRequest(for: route)
             state = try await streamingService.startStreaming(
                 kind: request.kind,

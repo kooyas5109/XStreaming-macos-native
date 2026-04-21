@@ -1,6 +1,26 @@
 import Foundation
 import SharedDomain
 
+public struct CompatibilityPlayerConfiguration: Equatable, Sendable {
+    public let turnServer: TurnServerConfiguration
+    public let videoFormat: String
+
+    public init(
+        turnServer: TurnServerConfiguration = TurnServerConfiguration(),
+        videoFormat: String = ""
+    ) {
+        self.turnServer = turnServer
+        self.videoFormat = videoFormat
+    }
+
+    public init(settings: AppSettings) {
+        self.init(
+            turnServer: settings.turnServer,
+            videoFormat: settings.videoFormat
+        )
+    }
+}
+
 public struct CompatibilityPlayerPage: Sendable {
     let playerScript: String
 
@@ -8,7 +28,10 @@ public struct CompatibilityPlayerPage: Sendable {
         self.playerScript = playerScript
     }
 
-    public func html(for session: StreamingSession) -> String {
+    public func html(
+        for session: StreamingSession,
+        configuration: CompatibilityPlayerConfiguration = CompatibilityPlayerConfiguration()
+    ) -> String {
         """
         <!doctype html>
         <html>
@@ -45,7 +68,7 @@ public struct CompatibilityPlayerPage: Sendable {
         \(escapedScript(playerScript))
           </script>
           <script>
-        \(playerBootstrapScript(sessionID: session.id))
+        \(playerBootstrapScript(sessionID: session.id, configuration: configuration))
           </script>
         </body>
         </html>
@@ -56,11 +79,16 @@ public struct CompatibilityPlayerPage: Sendable {
         script.replacingOccurrences(of: "</script", with: "<\\/script")
     }
 
-    private func playerBootstrapScript(sessionID: String) -> String {
+    private func playerBootstrapScript(
+        sessionID: String,
+        configuration: CompatibilityPlayerConfiguration
+    ) -> String {
         let encodedSessionID = Self.javascriptString(sessionID)
+        let encodedPlayerConfiguration = Self.javascriptJSON(configuration)
         return """
         (function () {
           const sessionID = \(encodedSessionID);
+          const nativePlayerConfiguration = \(encodedPlayerConfiguration);
           const status = document.getElementById("status");
           let player = null;
           let remoteOfferApplied = false;
@@ -360,7 +388,16 @@ public struct CompatibilityPlayerPage: Sendable {
                     emitDiagnostic("connectionstate " + state);
                   });
                 }
-                player.bind({});
+                if (nativePlayerConfiguration.turnServer) {
+                  player.bind({ turnServer: nativePlayerConfiguration.turnServer });
+                  emitDiagnostic("player bound with TURN server");
+                } else {
+                  player.bind({});
+                  emitDiagnostic("player bound without TURN server");
+                }
+                if (nativePlayerConfiguration.videoFormat && player.setVideoFormat) {
+                  player.setVideoFormat(nativePlayerConfiguration.videoFormat);
+                }
                 const offer = await player.createOffer();
                 post("sdp-offer", { sessionID, sdp: offer.sdp || "" });
                 setStatus("Waiting for console answer...");
@@ -456,6 +493,27 @@ public struct CompatibilityPlayerPage: Sendable {
     private static func javascriptString(_ value: String) -> String {
         let data = try? JSONEncoder().encode(value)
         return data.flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
+    }
+
+    private static func javascriptJSON(_ configuration: CompatibilityPlayerConfiguration) -> String {
+        var object: [String: Any] = [
+            "videoFormat": configuration.videoFormat
+        ]
+
+        if configuration.turnServer.url.isEmpty == false,
+           configuration.turnServer.username.isEmpty == false,
+           configuration.turnServer.credential.isEmpty == false {
+            object["turnServer"] = [
+                "url": configuration.turnServer.url,
+                "username": configuration.turnServer.username,
+                "credential": configuration.turnServer.credential
+            ]
+        } else {
+            object["turnServer"] = NSNull()
+        }
+
+        let data = try? JSONSerialization.data(withJSONObject: object)
+        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     }
 }
 

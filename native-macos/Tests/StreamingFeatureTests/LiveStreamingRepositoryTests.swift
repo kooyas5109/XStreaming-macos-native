@@ -86,36 +86,6 @@ func liveStreamingRepositoryReportsPlayHTTPFailuresBeforeDecoding() async throws
 }
 
 @Test
-func liveStreamingRepositoryNormalizesMalformedHomeBaseURI() async throws {
-    let session = MockURLSession(responses: [
-        MockURLSession.Response(
-            statusCode: 200,
-            body: """
-            {
-              "sessionPath": "/v5/sessions/home/session-123",
-              "state": "Provisioning"
-            }
-            """
-        )
-    ])
-    let repository = LiveStreamingRepository(
-        httpClient: HTTPClient(session: session),
-        tokenStore: InMemoryTokenStore(
-            initialValue: StoredTokens(
-                xHomeStreamingToken: "xhome-token",
-                xHomeBaseURI: "https://wus2.core.gssv-play-prodxhome.xboxlive.com/"
-            )
-        )
-    )
-
-    _ = try await repository.createSession(kind: .home, targetID: "console-1")
-
-    #expect(await session.requestURLs == [
-        "https://wus2.core.gssv-play-prod.xboxlive.com/v5/sessions/home/play"
-    ])
-}
-
-@Test
 func liveStreamingRepositoryStopsHomeSession() async throws {
     let session = MockURLSession(responses: [
         MockURLSession.Response(

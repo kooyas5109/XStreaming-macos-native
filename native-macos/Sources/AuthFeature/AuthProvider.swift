@@ -115,6 +115,11 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             return AuthSignInResult(authState: .signedOut, tokens: StoredTokens())
         }
 
+        if tokens.refreshToken?.isEmpty == false,
+           let refreshed = try? await refreshSession(from: tokens) {
+            return refreshed
+        }
+
         let profile = try? await restoreUserProfile(from: tokens)
         if let profile {
             let state = AuthState(

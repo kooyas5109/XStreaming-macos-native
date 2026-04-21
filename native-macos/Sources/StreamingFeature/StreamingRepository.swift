@@ -438,7 +438,7 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
         guard let streamingToken, streamingToken.isEmpty == false else {
             throw LiveStreamingRepositoryError.missingToken(kind)
         }
-        guard let baseURI, let baseURL = normalizedBaseURL(from: baseURI, kind: kind) else {
+        guard let baseURI, let baseURL = URL(string: baseURI) else {
             throw LiveStreamingRepositoryError.invalidBaseURI(baseURI ?? "")
         }
 
@@ -592,54 +592,6 @@ public final class LiveStreamingRepository: @unchecked Sendable, StreamingReposi
             return normalized
         }
         return String(normalized.prefix(limit)) + "..."
-    }
-
-    private func normalizedBaseURL(from baseURI: String, kind: StreamingKind) -> URL? {
-        let trimmed = baseURI.trimmingCharacters(in: .whitespacesAndNewlines)
-        let value = trimmed.contains("://") ? trimmed : "https://\(trimmed)"
-        guard var components = URLComponents(string: value) else {
-            return nil
-        }
-
-        components.scheme = components.scheme ?? "https"
-
-        if let host = components.host {
-            let normalizedHost = normalizedStreamingHost(host, kind: kind)
-            if normalizedHost != host {
-                logger.info("Normalized streaming base host from \(host) to \(normalizedHost) for kind=\(kind.rawValue)")
-            }
-            components.host = normalizedHost
-        }
-
-        if components.path == "/" {
-            components.path = ""
-        } else if components.path.hasSuffix("/") {
-            components.path.removeLast()
-        }
-        return components.url
-    }
-
-    private func normalizedStreamingHost(_ host: String, kind: StreamingKind) -> String {
-        let lowercasedHost = host.lowercased()
-        let knownOfferings: [String]
-        switch kind {
-        case .home:
-            knownOfferings = ["xhome"]
-        case .cloud:
-            knownOfferings = ["xgpuweb", "xgpuwebf2p"]
-        }
-
-        for offering in knownOfferings {
-            let malformedSuffix = "gssv-play-prod\(offering).xboxlive.com"
-            if lowercasedHost.contains(malformedSuffix) {
-                return lowercasedHost.replacingOccurrences(
-                    of: malformedSuffix,
-                    with: "gssv-play-prod.xboxlive.com"
-                )
-            }
-        }
-
-        return lowercasedHost
     }
 
     private func requestSummary(

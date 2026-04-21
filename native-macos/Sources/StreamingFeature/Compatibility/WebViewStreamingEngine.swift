@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import WebKit
 import SharedDomain
+import SupportKit
 
 public enum WebViewStreamingEngineError: Error, Equatable, Sendable {
     case invalidSessionURL
@@ -41,17 +42,20 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
     public let playerPage: CompatibilityPlayerPage
 
     private let configuration: WebViewStreamingConfiguration
+    private let logger: AppLogger
     private weak var webView: WKWebView?
     private var signaling: StreamingSignalingClient?
 
     public init(
         configuration: WebViewStreamingConfiguration,
         bridgeScript: String,
-        playerPage: CompatibilityPlayerPage
+        playerPage: CompatibilityPlayerPage,
+        logger: AppLogger = AppLogger(category: "WebRTC")
     ) {
         self.configuration = configuration
         self.bridgeScript = bridgeScript
         self.playerPage = playerPage
+        self.logger = logger
     }
 
     public convenience init(configuration: WebViewStreamingConfiguration) throws {
@@ -145,8 +149,12 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
             bridgeStatus = bridgeMessage(from: dictionary["payload"]) ?? bridgeStatus
         case "error":
             bridgeError = bridgeMessage(from: dictionary["payload"]) ?? "Unknown player error"
+            logger.error("WebView stream error: \(bridgeError ?? "unknown")")
         case "diagnostic":
-            bridgeStatus = diagnosticMessage(from: dictionary["payload"]) ?? bridgeStatus
+            if let diagnostic = diagnosticMessage(from: dictionary["payload"]) {
+                bridgeStatus = diagnostic
+                logger.info("WebView stream diagnostic: \(diagnostic)")
+            }
         default:
             break
         }
@@ -217,6 +225,9 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         let videoCount = dictionary["videoCount"] as? Int ?? 0
         let localCandidates = dictionary["localCandidatesSent"] as? Int ?? 0
         let remoteCandidates = dictionary["remoteCandidatesApplied"] as? Int ?? 0
+        let localSummary = dictionary["localCandidateSummary"] as? String
+        let remoteSummary = dictionary["remoteCandidateSummary"] as? String
+        let stats = dictionary["webRTCStats"] as? String
         let firstVideo = (dictionary["videos"] as? [[String: Any]])?.first
         let readyState = firstVideo?["readyState"] as? Int
         let size: String
@@ -227,7 +238,13 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
             size = "none"
         }
         let ready = readyState.map(String.init) ?? "none"
-        return "\(message) | pc=\(connection) ice=\(ice) local=\(localCandidates) remote=\(remoteCandidates) videos=\(videoCount) ready=\(ready) size=\(size)"
+        let base = "\(message) | pc=\(connection) ice=\(ice) local=\(localCandidates) remote=\(remoteCandidates) videos=\(videoCount) ready=\(ready) size=\(size)"
+        return [
+            base,
+            localSummary.map { "localICE[\($0)]" },
+            remoteSummary.map { "remoteICE[\($0)]" },
+            stats.map { "stats[\($0)]" }
+        ].compactMap { $0 }.joined(separator: " ")
     }
 
     private static func makeICECandidate(_ dictionary: [String: Any]) -> StreamingICECandidate? {

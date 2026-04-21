@@ -57,9 +57,13 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("sdp-offer"))
     #expect(html.contains("ice-candidates"))
     #expect(html.contains("publishedLocalCandidates"))
+    #expect(html.contains("publishedLocalCandidateValues"))
+    #expect(html.contains("candidateSummary"))
+    #expect(html.contains("emitWebRTCStats"))
     #expect(html.contains("normalizeMLineIndex"))
     #expect(html.contains("sdpMLineIndex: normalizeMLineIndex(candidate.sdpMLineIndex)"))
     #expect(html.contains("remoteCandidatesApplied"))
+    #expect(html.contains("remoteCandidateSummary = candidateSummary(normalizedCandidates)"))
     #expect(html.contains("Failed to apply remote ICE"))
     #expect(html.contains("connectionstate"))
     #expect(html.contains("video loadedmetadata"))
@@ -190,6 +194,9 @@ func compatibilityEngineSummarizesRemoteCandidateDiagnostics() async throws {
             "iceConnectionState": "checking",
             "localCandidatesSent": 27,
             "remoteCandidatesApplied": 3,
+            "localCandidateSummary": "total=27 host=8 srflx=19 relay=0 prflx=0 udp=27 tcp=0 end=0",
+            "remoteCandidateSummary": "total=12 host=12 srflx=0 relay=0 prflx=0 udp=12 tcp=0 end=1",
+            "webRTCStats": "local(host=8,srflx=19,relay=0) remote(host=12,srflx=0,relay=0) pairs=0 nominated=0 selected=0",
             "videoCount": 1,
             "videos": [
                 [
@@ -201,7 +208,7 @@ func compatibilityEngineSummarizesRemoteCandidateDiagnostics() async throws {
         ]
     ])
 
-    #expect(engine.bridgeStatus == "remote ICE applied | pc=connecting ice=checking local=27 remote=3 videos=1 ready=0 size=0x0")
+    #expect(engine.bridgeStatus == "remote ICE applied | pc=connecting ice=checking local=27 remote=3 videos=1 ready=0 size=0x0 localICE[total=27 host=8 srflx=19 relay=0 prflx=0 udp=27 tcp=0 end=0] remoteICE[total=12 host=12 srflx=0 relay=0 prflx=0 udp=12 tcp=0 end=1] stats[local(host=8,srflx=19,relay=0) remote(host=12,srflx=0,relay=0) pairs=0 nominated=0 selected=0]")
 }
 
 @Test

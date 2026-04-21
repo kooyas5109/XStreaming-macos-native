@@ -66,7 +66,11 @@ public struct CompatibilityPlayerPage: Sendable {
           let remoteOfferApplied = false;
           let connected = false;
           let remoteCandidatesApplied = 0;
+          let localCandidateSummary = "none";
+          let remoteCandidateSummary = "none";
+          let lastWebRTCStats = "none";
           const publishedLocalCandidates = new Set();
+          const publishedLocalCandidateValues = [];
 
           function post(type, payload) {
             const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.streamingBridge;
@@ -101,9 +105,106 @@ public struct CompatibilityPlayerPage: Sendable {
               iceGatheringState: pc ? pc.iceGatheringState : "unavailable",
               localCandidatesSent: publishedLocalCandidates.size,
               remoteCandidatesApplied,
+              localCandidateSummary,
+              remoteCandidateSummary,
+              webRTCStats: lastWebRTCStats,
               videoCount: videos.length,
               videos
             });
+          }
+
+          function candidateSummary(candidates) {
+            const summary = {
+              total: 0,
+              host: 0,
+              srflx: 0,
+              relay: 0,
+              prflx: 0,
+              udp: 0,
+              tcp: 0,
+              end: 0
+            };
+            candidates.forEach(function (candidate) {
+              const value = String(candidate && candidate.candidate ? candidate.candidate : candidate || "");
+              if (!value) {
+                return;
+              }
+              if (value === "a=end-of-candidates") {
+                summary.end += 1;
+                return;
+              }
+              summary.total += 1;
+              const parts = value.replace(/^a=/, "").split(/\\s+/);
+              const protocol = String(parts[2] || "").toLowerCase();
+              if (protocol === "udp") {
+                summary.udp += 1;
+              } else if (protocol === "tcp") {
+                summary.tcp += 1;
+              }
+              const typeIndex = parts.indexOf("typ");
+              const type = typeIndex >= 0 ? String(parts[typeIndex + 1] || "").toLowerCase() : "unknown";
+              if (Object.prototype.hasOwnProperty.call(summary, type)) {
+                summary[type] += 1;
+              }
+            });
+            return "total=" + summary.total
+              + " host=" + summary.host
+              + " srflx=" + summary.srflx
+              + " relay=" + summary.relay
+              + " prflx=" + summary.prflx
+              + " udp=" + summary.udp
+              + " tcp=" + summary.tcp
+              + " end=" + summary.end;
+          }
+
+          async function emitWebRTCStats(label) {
+            const pc = player && player._webrtcClient;
+            if (!pc || !pc.getStats) {
+              lastWebRTCStats = "unavailable";
+              emitDiagnostic(label);
+              return;
+            }
+            try {
+              const report = await pc.getStats();
+              const counts = {
+                localHost: 0,
+                localSrflx: 0,
+                localRelay: 0,
+                remoteHost: 0,
+                remoteSrflx: 0,
+                remoteRelay: 0,
+                pairs: 0,
+                nominated: 0,
+                selected: 0
+              };
+              report.forEach(function (stat) {
+                if (stat.type === "local-candidate") {
+                  if (stat.candidateType === "host") counts.localHost += 1;
+                  if (stat.candidateType === "srflx") counts.localSrflx += 1;
+                  if (stat.candidateType === "relay") counts.localRelay += 1;
+                } else if (stat.type === "remote-candidate") {
+                  if (stat.candidateType === "host") counts.remoteHost += 1;
+                  if (stat.candidateType === "srflx") counts.remoteSrflx += 1;
+                  if (stat.candidateType === "relay") counts.remoteRelay += 1;
+                } else if (stat.type === "candidate-pair") {
+                  counts.pairs += 1;
+                  if (stat.nominated) counts.nominated += 1;
+                  if (stat.selected || stat.state === "succeeded") counts.selected += 1;
+                }
+              });
+              lastWebRTCStats = "local(host=" + counts.localHost
+                + ",srflx=" + counts.localSrflx
+                + ",relay=" + counts.localRelay
+                + ") remote(host=" + counts.remoteHost
+                + ",srflx=" + counts.remoteSrflx
+                + ",relay=" + counts.remoteRelay
+                + ") pairs=" + counts.pairs
+                + " nominated=" + counts.nominated
+                + " selected=" + counts.selected;
+            } catch (error) {
+              lastWebRTCStats = "failed:" + String(error);
+            }
+            emitDiagnostic(label);
           }
 
           function normalizeMLineIndex(value) {
@@ -202,8 +303,10 @@ public struct CompatibilityPlayerPage: Sendable {
                   return false;
                 }
                 publishedLocalCandidates.add(key);
+                publishedLocalCandidateValues.push(candidate);
                 return true;
               });
+            localCandidateSummary = candidateSummary(publishedLocalCandidateValues);
             if (candidates.length > 0) {
               setStatus("Sending " + candidates.length + " local ICE candidates...");
               post("ice-candidates", { sessionID, candidates });
@@ -242,6 +345,7 @@ public struct CompatibilityPlayerPage: Sendable {
                     setStatus("WebRTC connection failed.");
                     post("error", { sessionID, message: "WebRTC connection failed before media started." });
                     emitDiagnostic("connection failed");
+                    emitWebRTCStats("connection failed stats");
                   });
                 }
                 if (player.getEventBus) {
@@ -283,8 +387,10 @@ public struct CompatibilityPlayerPage: Sendable {
                   const normalizedCandidates = candidates.map(normalizeIceCandidate);
                   player.setIceCandidates(normalizedCandidates);
                   remoteCandidatesApplied += normalizedCandidates.length;
+                  remoteCandidateSummary = candidateSummary(normalizedCandidates);
                   setStatus("Remote ICE applied. Waiting for media...");
                   emitDiagnostic("remote ICE applied");
+                  emitWebRTCStats("remote ICE stats");
                 } catch (error) {
                   setStatus("Failed to apply remote ICE.");
                   post("error", { sessionID, message: "Failed to apply remote ICE: " + String(error) });
@@ -328,7 +434,11 @@ public struct CompatibilityPlayerPage: Sendable {
               remoteOfferApplied = false;
               connected = false;
               remoteCandidatesApplied = 0;
+              localCandidateSummary = "none";
+              remoteCandidateSummary = "none";
+              lastWebRTCStats = "none";
               publishedLocalCandidates.clear();
+              publishedLocalCandidateValues.length = 0;
               setStatus("Stopped.");
             }
           };

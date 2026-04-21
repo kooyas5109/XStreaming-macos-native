@@ -50,6 +50,8 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     let html = page.html(for: StreamingFixtures.startedSession)
 
     #expect(html.contains("window.xStreamingPlayer || window.xstreamingPlayer"))
+    #expect(html.contains("typeof exported.default === \"function\""))
+    #expect(html.contains("return exported.default"))
     #expect(html.contains("new Player"))
     #expect(html.contains("xStreamingPlayer constructor is unavailable."))
     #expect(html.contains("sdp-offer"))

@@ -90,7 +90,14 @@ public struct CompatibilityPlayerPage: Sendable {
           }
 
           function playerConstructor() {
-            return window.xStreamingPlayer || window.xstreamingPlayer;
+            const exported = window.xStreamingPlayer || window.xstreamingPlayer;
+            if (typeof exported === "function") {
+              return exported;
+            }
+            if (exported && typeof exported.default === "function") {
+              return exported.default;
+            }
+            return null;
           }
 
           async function publishLocalIceCandidates() {

@@ -65,6 +65,7 @@ public struct CompatibilityPlayerPage: Sendable {
           let player = null;
           let remoteOfferApplied = false;
           let connected = false;
+          let remoteCandidatesApplied = 0;
           const publishedLocalCandidates = new Set();
 
           function post(type, payload) {
@@ -99,9 +100,15 @@ public struct CompatibilityPlayerPage: Sendable {
               iceConnectionState: pc ? pc.iceConnectionState : "unavailable",
               iceGatheringState: pc ? pc.iceGatheringState : "unavailable",
               localCandidatesSent: publishedLocalCandidates.size,
+              remoteCandidatesApplied,
               videoCount: videos.length,
               videos
             });
+          }
+
+          function normalizeMLineIndex(value) {
+            const parsed = Number(value ?? 0);
+            return Number.isFinite(parsed) ? parsed : 0;
           }
 
           function normalizeIceCandidate(candidate) {
@@ -109,7 +116,7 @@ public struct CompatibilityPlayerPage: Sendable {
               messageType: "iceCandidate",
               candidate: candidate.candidate || "",
               sdpMid: candidate.sdpMid || "0",
-              sdpMLineIndex: String(candidate.sdpMLineIndex ?? 0)
+              sdpMLineIndex: normalizeMLineIndex(candidate.sdpMLineIndex)
             };
           }
 
@@ -272,9 +279,17 @@ public struct CompatibilityPlayerPage: Sendable {
             },
             setIceCandidates(candidates) {
               if (player && candidates && candidates.length) {
-                player.setIceCandidates(candidates);
-                setStatus("Remote ICE applied. Waiting for media...");
-                emitDiagnostic("remote ICE applied");
+                try {
+                  const normalizedCandidates = candidates.map(normalizeIceCandidate);
+                  player.setIceCandidates(normalizedCandidates);
+                  remoteCandidatesApplied += normalizedCandidates.length;
+                  setStatus("Remote ICE applied. Waiting for media...");
+                  emitDiagnostic("remote ICE applied");
+                } catch (error) {
+                  setStatus("Failed to apply remote ICE.");
+                  post("error", { sessionID, message: "Failed to apply remote ICE: " + String(error) });
+                  emitDiagnostic("remote ICE apply failed");
+                }
               }
             },
             setButton(button, phase) {
@@ -312,6 +327,7 @@ public struct CompatibilityPlayerPage: Sendable {
               player = null;
               remoteOfferApplied = false;
               connected = false;
+              remoteCandidatesApplied = 0;
               publishedLocalCandidates.clear();
               setStatus("Stopped.");
             }

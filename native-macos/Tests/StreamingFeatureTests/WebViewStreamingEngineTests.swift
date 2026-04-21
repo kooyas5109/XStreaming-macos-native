@@ -57,6 +57,10 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("sdp-offer"))
     #expect(html.contains("ice-candidates"))
     #expect(html.contains("publishedLocalCandidates"))
+    #expect(html.contains("normalizeMLineIndex"))
+    #expect(html.contains("sdpMLineIndex: normalizeMLineIndex(candidate.sdpMLineIndex)"))
+    #expect(html.contains("remoteCandidatesApplied"))
+    #expect(html.contains("Failed to apply remote ICE"))
     #expect(html.contains("connectionstate"))
     #expect(html.contains("video loadedmetadata"))
     #expect(html.contains("Remote ICE applied. Waiting for media..."))
@@ -166,7 +170,54 @@ func compatibilityEngineSummarizesBridgeDiagnostics() async throws {
         ]
     ])
 
-    #expect(engine.bridgeStatus == "remote ICE applied | pc=connecting ice=checking candidates=2 videos=1 ready=0 size=0x0")
+    #expect(engine.bridgeStatus == "remote ICE applied | pc=connecting ice=checking local=2 remote=0 videos=1 ready=0 size=0x0")
+}
+
+@Test
+@MainActor
+func compatibilityEngineSummarizesRemoteCandidateDiagnostics() async throws {
+    let engine = WebViewStreamingEngine(
+        configuration: .preview,
+        bridgeScript: "window.nativeStreamingBridge = {};",
+        playerPage: CompatibilityPlayerPage(playerScript: "function xStreamingPlayer() {}")
+    )
+
+    try await engine.handleBridgeMessage([
+        "type": "diagnostic",
+        "payload": [
+            "message": "remote ICE applied",
+            "connectionState": "connecting",
+            "iceConnectionState": "checking",
+            "localCandidatesSent": 27,
+            "remoteCandidatesApplied": 3,
+            "videoCount": 1,
+            "videos": [
+                [
+                    "readyState": 0,
+                    "width": 0,
+                    "height": 0
+                ]
+            ]
+        ]
+    ])
+
+    #expect(engine.bridgeStatus == "remote ICE applied | pc=connecting ice=checking local=27 remote=3 videos=1 ready=0 size=0x0")
+}
+
+@Test
+@MainActor
+func compatibilityEngineSerializesRemoteIceMLineIndexAsNumber() {
+    let json = WebViewStreamingEngine.javascriptJSON([
+        StreamingICECandidate(
+            messageType: "iceCandidate",
+            candidate: "candidate:1 1 UDP 1 127.0.0.1 9002 typ host",
+            sdpMid: "0",
+            sdpMLineIndex: "0"
+        )
+    ])
+
+    #expect(json.contains("\"sdpMLineIndex\":0"))
+    #expect(!json.contains("\"sdpMLineIndex\":\"0\""))
 }
 
 private actor BridgeSignalingRecorder {

@@ -216,6 +216,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         let ice = dictionary["iceConnectionState"] as? String ?? "unknown"
         let videoCount = dictionary["videoCount"] as? Int ?? 0
         let localCandidates = dictionary["localCandidatesSent"] as? Int ?? 0
+        let remoteCandidates = dictionary["remoteCandidatesApplied"] as? Int ?? 0
         let firstVideo = (dictionary["videos"] as? [[String: Any]])?.first
         let readyState = firstVideo?["readyState"] as? Int
         let size: String
@@ -226,7 +227,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
             size = "none"
         }
         let ready = readyState.map(String.init) ?? "none"
-        return "\(message) | pc=\(connection) ice=\(ice) candidates=\(localCandidates) videos=\(videoCount) ready=\(ready) size=\(size)"
+        return "\(message) | pc=\(connection) ice=\(ice) local=\(localCandidates) remote=\(remoteCandidates) videos=\(videoCount) ready=\(ready) size=\(size)"
     }
 
     private static func makeICECandidate(_ dictionary: [String: Any]) -> StreamingICECandidate? {
@@ -234,11 +235,20 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
             return nil
         }
 
+        let mLineIndex: String?
+        if let value = dictionary["sdpMLineIndex"] as? Int {
+            mLineIndex = String(value)
+        } else if let value = dictionary["sdpMLineIndex"] as? Double {
+            mLineIndex = String(Int(value))
+        } else {
+            mLineIndex = dictionary["sdpMLineIndex"] as? String
+        }
+
         return StreamingICECandidate(
             messageType: dictionary["messageType"] as? String ?? "iceCandidate",
             candidate: candidate,
             sdpMid: dictionary["sdpMid"] as? String,
-            sdpMLineIndex: dictionary["sdpMLineIndex"] as? String
+            sdpMLineIndex: mLineIndex
         )
     }
 
@@ -258,13 +268,13 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         return data.flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
     }
 
-    private static func javascriptJSON(_ candidates: [StreamingICECandidate]) -> String {
+    static func javascriptJSON(_ candidates: [StreamingICECandidate]) -> String {
         let values = candidates.map { candidate in
             [
                 "candidate": candidate.candidate,
                 "sdpMid": candidate.sdpMid ?? "0",
-                "sdpMLineIndex": candidate.sdpMLineIndex ?? "0"
-            ]
+                "sdpMLineIndex": Int(candidate.sdpMLineIndex ?? "0") ?? 0
+            ] as [String: Any]
         }
         let data = try? JSONSerialization.data(withJSONObject: values)
         return data.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"

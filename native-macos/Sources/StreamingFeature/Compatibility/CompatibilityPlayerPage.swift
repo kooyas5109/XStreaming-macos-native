@@ -89,6 +89,10 @@ public struct CompatibilityPlayerPage: Sendable {
             };
           }
 
+          function playerConstructor() {
+            return window.xStreamingPlayer || window.xstreamingPlayer;
+          }
+
           async function publishLocalIceCandidates() {
             if (!player || !remoteOfferApplied || localIcePublished) {
               return;
@@ -111,7 +115,11 @@ public struct CompatibilityPlayerPage: Sendable {
               }
               try {
                 setStatus("Creating peer connection...");
-                player = new xStreamingPlayer("videoHolder", {
+                const Player = playerConstructor();
+                if (!Player) {
+                  throw new Error("xStreamingPlayer constructor is unavailable.");
+                }
+                player = new Player("videoHolder", {
                   input_touch: false,
                   ui_touchenabled: false,
                   input_mousekeyboard: false,

@@ -49,7 +49,9 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     let page = CompatibilityPlayerPage(playerScript: "function xStreamingPlayer() {}")
     let html = page.html(for: StreamingFixtures.startedSession)
 
-    #expect(html.contains("new xStreamingPlayer"))
+    #expect(html.contains("window.xStreamingPlayer || window.xstreamingPlayer"))
+    #expect(html.contains("new Player"))
+    #expect(html.contains("xStreamingPlayer constructor is unavailable."))
     #expect(html.contains("sdp-offer"))
     #expect(html.contains("ice-candidates"))
     #expect(html.contains("localIcePublished"))
@@ -82,7 +84,7 @@ func compatibilityEngineBuildsPhaseAwareButtonScripts() {
 func compatibilityPlayerAssetLoaderFindsBundledPlayerScript() throws {
     let script = try CompatibilityPlayerAssetLoader.loadPlayerScript()
 
-    #expect(script.contains("xStreamingPlayer"))
+    #expect(script.contains("xstreamingPlayer"))
 }
 
 @Test

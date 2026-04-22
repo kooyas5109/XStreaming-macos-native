@@ -98,7 +98,6 @@ public struct CompatibilityPlayerPage: Sendable {
           let remoteCandidateSummary = "none";
           let lastWebRTCStats = "none";
           const publishedLocalCandidates = new Set();
-          const publishedLocalCandidateValues = [];
 
           function post(type, payload) {
             const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.streamingBridge;
@@ -257,6 +256,30 @@ public struct CompatibilityPlayerPage: Sendable {
             ].join("|");
           }
 
+          function collectLocalIceCandidates() {
+            const rawCandidates = player && player.getIceCandidates ? player.getIceCandidates() : [];
+            const seen = new Set();
+            return rawCandidates
+              .map(normalizeIceCandidate)
+              .filter(function (candidate) {
+                if (candidate.candidate.length === 0) {
+                  return false;
+                }
+                const key = candidateKey(candidate);
+                if (seen.has(key)) {
+                  return false;
+                }
+                seen.add(key);
+                return true;
+              });
+          }
+
+          function wait(milliseconds) {
+            return new Promise(function (resolve) {
+              window.setTimeout(resolve, milliseconds);
+            });
+          }
+
           function observeVideoElement(video) {
             if (!video || video.dataset.nativeObserved === "true") {
               return;
@@ -315,39 +338,41 @@ public struct CompatibilityPlayerPage: Sendable {
             return null;
           }
 
-          async function publishLocalIceCandidates() {
+          async function exchangeLocalIceCandidates() {
             if (!player || !remoteOfferApplied || connected) {
               return;
             }
-            const rawCandidates = player.getIceCandidates ? player.getIceCandidates() : [];
-            const candidates = rawCandidates
-              .map(normalizeIceCandidate)
-              .filter(function (candidate) {
-                if (candidate.candidate.length === 0) {
-                  return false;
-                }
-                const key = candidateKey(candidate);
-                if (publishedLocalCandidates.has(key)) {
-                  return false;
-                }
-                publishedLocalCandidates.add(key);
-                publishedLocalCandidateValues.push(candidate);
-                return true;
-              });
-            localCandidateSummary = candidateSummary(publishedLocalCandidateValues);
+            setStatus("Collecting local ICE candidates...");
+
+            let candidates = [];
+            let previousCount = -1;
+            const delays = [0, 500, 1000, 1500, 2500, 3500];
+            for (const delay of delays) {
+              if (delay > 0) {
+                await wait(delay);
+              }
+              candidates = collectLocalIceCandidates();
+              localCandidateSummary = candidateSummary(candidates);
+              emitDiagnostic("local ICE collection");
+
+              const hasRelay = localCandidateSummary.indexOf("relay=0") === -1;
+              if (candidates.length > 0 && candidates.length === previousCount && hasRelay) {
+                break;
+              }
+              previousCount = candidates.length;
+            }
+
+            candidates.forEach(function (candidate) {
+              publishedLocalCandidates.add(candidateKey(candidate));
+            });
+            localCandidateSummary = candidateSummary(candidates);
             if (candidates.length > 0) {
               setStatus("Sending " + candidates.length + " local ICE candidates...");
               post("ice-candidates", { sessionID, candidates });
             } else {
-              setStatus("Waiting for local ICE candidates...");
+              setStatus("No local ICE candidates were gathered.");
             }
-            emitDiagnostic("local ICE publish attempt");
-          }
-
-          function scheduleIcePublishing() {
-            [0, 500, 1000, 2000, 4000, 7000, 10000].forEach(function (delay) {
-              window.setTimeout(publishLocalIceCandidates, delay);
-            });
+            emitDiagnostic("local ICE publish complete");
           }
 
           window.xstreamingNativePlayer = {
@@ -416,7 +441,7 @@ public struct CompatibilityPlayerPage: Sendable {
               remoteOfferApplied = true;
               setStatus("Negotiating network path...");
               emitDiagnostic("remote answer applied");
-              scheduleIcePublishing();
+              exchangeLocalIceCandidates();
             },
             setIceCandidates(candidates) {
               if (player && candidates && candidates.length) {
@@ -475,7 +500,6 @@ public struct CompatibilityPlayerPage: Sendable {
               remoteCandidateSummary = "none";
               lastWebRTCStats = "none";
               publishedLocalCandidates.clear();
-              publishedLocalCandidateValues.length = 0;
               setStatus("Stopped.");
             }
           };

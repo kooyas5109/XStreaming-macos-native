@@ -43,6 +43,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
     public private(set) var playerConfiguration = CompatibilityPlayerConfiguration()
 
     private let configuration: WebViewStreamingConfiguration
+    private let defaultTurnServerProvider: TurnServerConfigurationProvider
     private let logger: AppLogger
     private weak var webView: WKWebView?
     private var signaling: StreamingSignalingClient?
@@ -51,11 +52,13 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         configuration: WebViewStreamingConfiguration,
         bridgeScript: String,
         playerPage: CompatibilityPlayerPage,
+        defaultTurnServerProvider: TurnServerConfigurationProvider = SupportTurnServerConfigurationProvider(),
         logger: AppLogger = AppLogger(category: "WebRTC")
     ) {
         self.configuration = configuration
         self.bridgeScript = bridgeScript
         self.playerPage = playerPage
+        self.defaultTurnServerProvider = defaultTurnServerProvider
         self.logger = logger
     }
 
@@ -72,8 +75,22 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
     }
 
     public func configure(settings: AppSettings) async {
-        playerConfiguration = CompatibilityPlayerConfiguration(settings: settings)
-        let turnMode = playerConfiguration.turnServer.url.isEmpty ? "default" : "custom"
+        var turnServer = settings.turnServer
+        var turnMode = "custom"
+
+        if turnServer.isComplete == false {
+            if let defaultTurnServer = await defaultTurnServerProvider.loadDefaultTurnServer() {
+                turnServer = defaultTurnServer
+                turnMode = "default-relay"
+            } else {
+                turnMode = "none"
+            }
+        }
+
+        playerConfiguration = CompatibilityPlayerConfiguration(
+            turnServer: turnServer,
+            videoFormat: settings.videoFormat
+        )
         let videoFormat = playerConfiguration.videoFormat.isEmpty ? "default" : playerConfiguration.videoFormat
         logger.info("Configured WebView player: turn=\(turnMode), videoFormat=\(videoFormat)")
     }

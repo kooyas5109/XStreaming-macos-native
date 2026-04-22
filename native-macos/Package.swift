@@ -147,7 +147,7 @@ let package = Package(
         ),
         .testTarget(
             name: "StreamingFeatureTests",
-            dependencies: ["StreamingFeature", "SharedDomain", "PersistenceKit"],
+            dependencies: ["StreamingFeature", "SharedDomain", "PersistenceKit", "NetworkingKit"],
             path: "Tests/StreamingFeatureTests"
         ),
         .testTarget(

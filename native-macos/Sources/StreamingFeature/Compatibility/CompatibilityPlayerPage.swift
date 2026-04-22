@@ -500,9 +500,7 @@ public struct CompatibilityPlayerPage: Sendable {
             "videoFormat": configuration.videoFormat
         ]
 
-        if configuration.turnServer.url.isEmpty == false,
-           configuration.turnServer.username.isEmpty == false,
-           configuration.turnServer.credential.isEmpty == false {
+        if configuration.turnServer.isComplete {
             object["turnServer"] = [
                 "url": configuration.turnServer.url,
                 "username": configuration.turnServer.username,

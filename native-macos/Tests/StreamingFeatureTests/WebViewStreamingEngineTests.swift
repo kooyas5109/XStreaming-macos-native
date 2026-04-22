@@ -1,4 +1,5 @@
 import Foundation
+import NetworkingKit
 import SharedDomain
 import Testing
 @testable import StreamingFeature
@@ -166,6 +167,56 @@ func compatibilityEngineAppliesSettingsToPlayerConfiguration() async {
 
     #expect(engine.playerConfiguration.videoFormat == "H265")
     #expect(engine.playerConfiguration.turnServer.url == "turn:relay.example.com")
+}
+
+@Test
+@MainActor
+func compatibilityEngineLoadsDefaultTurnServerWhenSettingsAreEmpty() async {
+    let engine = WebViewStreamingEngine(
+        configuration: .preview,
+        bridgeScript: "window.nativeStreamingBridge = {};",
+        playerPage: CompatibilityPlayerPage(playerScript: "function xStreamingPlayer() {}"),
+        defaultTurnServerProvider: StubTurnServerProvider(
+            turnServer: TurnServerConfiguration(
+                url: "turn:default-relay.example.com",
+                username: "default-user",
+                credential: "default-secret"
+            )
+        )
+    )
+
+    await engine.configure(settings: .defaults)
+
+    #expect(engine.playerConfiguration.turnServer.url == "turn:default-relay.example.com")
+    #expect(engine.playerConfiguration.turnServer.username == "default-user")
+    #expect(engine.playerConfiguration.turnServer.credential == "default-secret")
+}
+
+@Test
+func supportTurnServerProviderFetchesDefaultRelayConfig() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "url": "turn:default-relay.example.com",
+              "username": "default-user",
+              "credential": "default-secret"
+            }
+            """
+        )
+    ])
+    let provider = SupportTurnServerConfigurationProvider(
+        httpClient: HTTPClient(session: session),
+        endpoint: URL(string: "https://relay.example.com/server.json")!
+    )
+
+    let turnServer = try #require(await provider.loadDefaultTurnServer())
+
+    #expect(turnServer.url == "turn:default-relay.example.com")
+    #expect(turnServer.username == "default-user")
+    #expect(turnServer.credential == "default-secret")
+    #expect(await session.requestURLs == ["https://relay.example.com/server.json"])
 }
 
 @Test
@@ -341,5 +392,56 @@ private struct TestBridgeSignalingClient: StreamingSignalingClient {
                 sdpMLineIndex: "0"
             )
         ]
+    }
+}
+
+private struct StubTurnServerProvider: TurnServerConfigurationProvider {
+    let turnServer: TurnServerConfiguration?
+
+    func loadDefaultTurnServer() async -> TurnServerConfiguration? {
+        turnServer
+    }
+}
+
+private final class MockURLSession: URLSessionProviding, @unchecked Sendable {
+    struct Response: Sendable {
+        let statusCode: Int
+        let body: String
+    }
+
+    private let responses: [Response]
+    private let capture = RequestCapture()
+    private var index = 0
+
+    init(responses: [Response]) {
+        self.responses = responses
+    }
+
+    var requestURLs: [String] {
+        get async { await capture.requestURLs }
+    }
+
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        await capture.record(request)
+        let response = responses[index]
+        index += 1
+        let url = try #require(request.url)
+        let httpResponse = try #require(
+            HTTPURLResponse(
+                url: url,
+                statusCode: response.statusCode,
+                httpVersion: nil,
+                headerFields: nil
+            )
+        )
+        return (Data(response.body.utf8), httpResponse)
+    }
+}
+
+private actor RequestCapture {
+    private(set) var requestURLs: [String] = []
+
+    func record(_ request: URLRequest) {
+        requestURLs.append(request.url?.absoluteString ?? "")
     }
 }

@@ -96,6 +96,8 @@ public struct CompatibilityPlayerPage: Sendable {
           let remoteCandidatesApplied = 0;
           let localCandidateSummary = "none";
           let remoteCandidateSummary = "none";
+          let localCandidateDetail = "none";
+          let remoteCandidateDetail = "none";
           let lastWebRTCStats = "none";
           const publishedLocalCandidates = new Set();
 
@@ -134,6 +136,8 @@ public struct CompatibilityPlayerPage: Sendable {
               remoteCandidatesApplied,
               localCandidateSummary,
               remoteCandidateSummary,
+              localCandidateDetail,
+              remoteCandidateDetail,
               webRTCStats: lastWebRTCStats,
               videoCount: videos.length,
               videos
@@ -182,6 +186,29 @@ public struct CompatibilityPlayerPage: Sendable {
               + " udp=" + summary.udp
               + " tcp=" + summary.tcp
               + " end=" + summary.end;
+          }
+
+          function candidateDetail(candidates) {
+            const counts = {};
+            candidates.forEach(function (candidate) {
+              const value = String(candidate && candidate.candidate ? candidate.candidate : candidate || "");
+              if (!value || value === "a=end-of-candidates") {
+                return;
+              }
+              const parts = value.replace(/^a=/, "").split(/\\s+/);
+              const protocol = String(parts[2] || "unknown").toLowerCase();
+              const typeIndex = parts.indexOf("typ");
+              const type = typeIndex >= 0 ? String(parts[typeIndex + 1] || "unknown").toLowerCase() : "unknown";
+              const foundation = String(parts[0] || "candidate:?").replace("candidate:", "f");
+              const port = String(parts[5] || "?");
+              const key = type + "/" + protocol + "/" + foundation + "/p" + port;
+              counts[key] = (counts[key] || 0) + 1;
+            });
+            return Object.keys(counts)
+              .sort()
+              .slice(0, 16)
+              .map(function (key) { return key + "x" + counts[key]; })
+              .join(",") || "none";
           }
 
           async function emitWebRTCStats(label) {
@@ -353,6 +380,7 @@ public struct CompatibilityPlayerPage: Sendable {
               }
               candidates = collectLocalIceCandidates();
               localCandidateSummary = candidateSummary(candidates);
+              localCandidateDetail = candidateDetail(candidates);
               emitDiagnostic("local ICE collection");
 
               const hasRelay = localCandidateSummary.indexOf("relay=0") === -1;
@@ -366,6 +394,7 @@ public struct CompatibilityPlayerPage: Sendable {
               publishedLocalCandidates.add(candidateKey(candidate));
             });
             localCandidateSummary = candidateSummary(candidates);
+            localCandidateDetail = candidateDetail(candidates);
             if (candidates.length > 0) {
               setStatus("Sending " + candidates.length + " local ICE candidates...");
               post("ice-candidates", { sessionID, candidates });
@@ -450,6 +479,7 @@ public struct CompatibilityPlayerPage: Sendable {
                   player.setIceCandidates(normalizedCandidates);
                   remoteCandidatesApplied += normalizedCandidates.length;
                   remoteCandidateSummary = candidateSummary(normalizedCandidates);
+                  remoteCandidateDetail = candidateDetail(normalizedCandidates);
                   setStatus("Remote ICE applied. Waiting for media...");
                   emitDiagnostic("remote ICE applied");
                   emitWebRTCStats("remote ICE stats");
@@ -498,6 +528,8 @@ public struct CompatibilityPlayerPage: Sendable {
               remoteCandidatesApplied = 0;
               localCandidateSummary = "none";
               remoteCandidateSummary = "none";
+              localCandidateDetail = "none";
+              remoteCandidateDetail = "none";
               lastWebRTCStats = "none";
               publishedLocalCandidates.clear();
               setStatus("Stopped.");

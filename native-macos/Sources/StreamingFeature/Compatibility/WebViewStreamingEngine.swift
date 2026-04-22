@@ -218,6 +218,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         guard candidates.isEmpty == false else {
             return
         }
+        logger.info("Publishing local ICE candidates: \(Self.redactedCandidateSummary(candidates))")
 
         let remoteCandidates: [StreamingICECandidate]
         if let streamingService = signaling as? StreamingService {
@@ -225,6 +226,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         } else {
             remoteCandidates = try await signaling.exchangeICE(sessionID: session.id, candidate: candidates[0].candidate)
         }
+        logger.info("Applying remote ICE candidates: \(Self.redactedCandidateSummary(remoteCandidates))")
 
         bridgeStatus = "Remote ICE candidates received."
         let script = "window.xstreamingNativePlayer?.setIceCandidates?.(\(Self.javascriptJSON(remoteCandidates)))"
@@ -255,6 +257,8 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         let remoteCandidates = dictionary["remoteCandidatesApplied"] as? Int ?? 0
         let localSummary = dictionary["localCandidateSummary"] as? String
         let remoteSummary = dictionary["remoteCandidateSummary"] as? String
+        let localDetail = dictionary["localCandidateDetail"] as? String
+        let remoteDetail = dictionary["remoteCandidateDetail"] as? String
         let stats = dictionary["webRTCStats"] as? String
         let firstVideo = (dictionary["videos"] as? [[String: Any]])?.first
         let readyState = firstVideo?["readyState"] as? Int
@@ -270,9 +274,44 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         return [
             base,
             localSummary.map { "localICE[\($0)]" },
+            localDetail.map { "localDetail[\($0)]" },
             remoteSummary.map { "remoteICE[\($0)]" },
+            remoteDetail.map { "remoteDetail[\($0)]" },
             stats.map { "stats[\($0)]" }
         ].compactMap { $0 }.joined(separator: " ")
+    }
+
+    private static func redactedCandidateSummary(_ candidates: [StreamingICECandidate]) -> String {
+        var counts: [String: Int] = [:]
+        var ended = 0
+        for candidate in candidates {
+            if candidate.candidate == "a=end-of-candidates" {
+                ended += 1
+                continue
+            }
+
+            let parts = candidate.candidate
+                .replacingOccurrences(of: "a=", with: "")
+                .split(separator: " ", omittingEmptySubsequences: true)
+                .map(String.init)
+            guard parts.count >= 8 else {
+                counts["malformed"] = (counts["malformed"] ?? 0) + 1
+                continue
+            }
+
+            let protocolName = parts[2].lowercased()
+            let typeIndex = parts.firstIndex(of: "typ")
+            let candidateType = typeIndex.flatMap { index in
+                parts.indices.contains(index + 1) ? parts[index + 1].lowercased() : nil
+            } ?? "unknown"
+            let key = "\(candidateType)/\(protocolName)"
+            counts[key] = (counts[key] ?? 0) + 1
+        }
+
+        let values = counts
+            .sorted { first, second in first.key < second.key }
+            .map { "\($0.key)=\($0.value)" }
+        return (values + ["end=\(ended)", "total=\(candidates.count)"]).joined(separator: " ")
     }
 
     private static func makeICECandidate(_ dictionary: [String: Any]) -> StreamingICECandidate? {

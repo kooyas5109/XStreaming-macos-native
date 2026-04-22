@@ -66,12 +66,15 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("candidateDetail"))
     #expect(html.contains("localCandidateDetail"))
     #expect(html.contains("remoteCandidateDetail"))
+    #expect(html.contains("remoteCandidateApplySummary"))
+    #expect(html.contains("applyRemoteDescription"))
+    #expect(html.contains("addRemoteIceCandidate"))
     #expect(html.contains("emitWebRTCStats"))
     #expect(html.contains("normalizeMLineIndex"))
     #expect(html.contains("sdpMLineIndex: normalizeMLineIndex(candidate.sdpMLineIndex)"))
     #expect(html.contains("remoteCandidatesApplied"))
     #expect(html.contains("remoteCandidateSummary = candidateSummary(normalizedCandidates)"))
-    #expect(html.contains("Failed to apply remote ICE"))
+    #expect(html.contains("Remote ICE candidate failures"))
     #expect(html.contains("connectionstate"))
     #expect(html.contains("video loadedmetadata"))
     #expect(html.contains("Remote ICE applied. Waiting for media..."))
@@ -344,6 +347,7 @@ func compatibilityEngineSummarizesRemoteCandidateDiagnostics() async throws {
             "localCandidateDetail": "host/udp/f1/p9002x1,srflx/udp/f2/p53000x1",
             "remoteCandidateSummary": "total=12 host=12 srflx=0 relay=0 prflx=0 udp=12 tcp=0 end=1",
             "remoteCandidateDetail": "host/udp/f1/p9002x1",
+            "remoteCandidateApplySummary": "applied=11 fallback=0 failed=0 end=1",
             "webRTCStats": "local(host=8,srflx=19,relay=0) remote(host=12,srflx=0,relay=0) pairs=0 nominated=0 selected=0",
             "videoCount": 1,
             "videos": [
@@ -356,7 +360,7 @@ func compatibilityEngineSummarizesRemoteCandidateDiagnostics() async throws {
         ]
     ])
 
-    #expect(engine.bridgeStatus == "remote ICE applied | pc=connecting ice=checking local=27 remote=3 videos=1 ready=0 size=0x0 localICE[total=27 host=8 srflx=19 relay=0 prflx=0 udp=27 tcp=0 end=0] localDetail[host/udp/f1/p9002x1,srflx/udp/f2/p53000x1] remoteICE[total=12 host=12 srflx=0 relay=0 prflx=0 udp=12 tcp=0 end=1] remoteDetail[host/udp/f1/p9002x1] stats[local(host=8,srflx=19,relay=0) remote(host=12,srflx=0,relay=0) pairs=0 nominated=0 selected=0]")
+    #expect(engine.bridgeStatus == "remote ICE applied | pc=connecting ice=checking local=27 remote=3 videos=1 ready=0 size=0x0 localICE[total=27 host=8 srflx=19 relay=0 prflx=0 udp=27 tcp=0 end=0] localDetail[host/udp/f1/p9002x1,srflx/udp/f2/p53000x1] remoteICE[total=12 host=12 srflx=0 relay=0 prflx=0 udp=12 tcp=0 end=1] remoteDetail[host/udp/f1/p9002x1] remoteApply[applied=11 fallback=0 failed=0 end=1] stats[local(host=8,srflx=19,relay=0) remote(host=12,srflx=0,relay=0) pairs=0 nominated=0 selected=0]")
 }
 
 @Test

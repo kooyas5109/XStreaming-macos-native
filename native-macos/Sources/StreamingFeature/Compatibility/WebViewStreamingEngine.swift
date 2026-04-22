@@ -259,6 +259,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         let remoteSummary = dictionary["remoteCandidateSummary"] as? String
         let localDetail = dictionary["localCandidateDetail"] as? String
         let remoteDetail = dictionary["remoteCandidateDetail"] as? String
+        let remoteApply = dictionary["remoteCandidateApplySummary"] as? String
         let stats = dictionary["webRTCStats"] as? String
         let firstVideo = (dictionary["videos"] as? [[String: Any]])?.first
         let readyState = firstVideo?["readyState"] as? Int
@@ -277,6 +278,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
             localDetail.map { "localDetail[\($0)]" },
             remoteSummary.map { "remoteICE[\($0)]" },
             remoteDetail.map { "remoteDetail[\($0)]" },
+            remoteApply.map { "remoteApply[\($0)]" },
             stats.map { "stats[\($0)]" }
         ].compactMap { $0 }.joined(separator: " ")
     }

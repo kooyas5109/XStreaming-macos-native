@@ -98,6 +98,7 @@ public struct CompatibilityPlayerPage: Sendable {
           let remoteCandidateSummary = "none";
           let localCandidateDetail = "none";
           let remoteCandidateDetail = "none";
+          let remoteCandidateApplySummary = "none";
           let lastWebRTCStats = "none";
           const publishedLocalCandidates = new Set();
 
@@ -138,6 +139,7 @@ public struct CompatibilityPlayerPage: Sendable {
               remoteCandidateSummary,
               localCandidateDetail,
               remoteCandidateDetail,
+              remoteCandidateApplySummary,
               webRTCStats: lastWebRTCStats,
               videoCount: videos.length,
               videos
@@ -281,6 +283,43 @@ public struct CompatibilityPlayerPage: Sendable {
               candidate.sdpMid || "0",
               String(candidate.sdpMLineIndex ?? 0)
             ].join("|");
+          }
+
+          function peerConnection() {
+            return player && player._webrtcClient ? player._webrtcClient : null;
+          }
+
+          async function applyRemoteDescription(sdp) {
+            const pc = peerConnection();
+            if (!pc || !pc.setRemoteDescription) {
+              throw new Error("RTCPeerConnection is unavailable.");
+            }
+            await pc.setRemoteDescription({ type: "answer", sdp });
+            if (player.getEventBus) {
+              player.getEventBus().emit("connectionstate", { state: "connecting" });
+            }
+          }
+
+          async function addRemoteIceCandidate(pc, candidate) {
+            const primary = {
+              candidate: candidate.candidate,
+              sdpMid: candidate.sdpMid || "0",
+              sdpMLineIndex: normalizeMLineIndex(candidate.sdpMLineIndex)
+            };
+            try {
+              await pc.addIceCandidate(primary);
+              return { applied: true, fallback: false };
+            } catch (primaryError) {
+              try {
+                await pc.addIceCandidate({
+                  candidate: primary.candidate,
+                  sdpMLineIndex: primary.sdpMLineIndex
+                });
+                return { applied: true, fallback: true };
+              } catch (_) {
+                return { applied: false, fallback: false, error: String(primaryError) };
+              }
+            }
           }
 
           function collectLocalIceCandidates() {
@@ -466,27 +505,63 @@ public struct CompatibilityPlayerPage: Sendable {
                 post("error", { sessionID, message: "Player has not started." });
                 return;
               }
-              player.setRemoteOffer(sdp);
-              remoteOfferApplied = true;
-              setStatus("Negotiating network path...");
-              emitDiagnostic("remote answer applied");
-              exchangeLocalIceCandidates();
+              try {
+                await applyRemoteDescription(sdp);
+                remoteOfferApplied = true;
+                setStatus("Negotiating network path...");
+                emitDiagnostic("remote answer applied");
+                exchangeLocalIceCandidates();
+              } catch (error) {
+                setStatus("Failed to apply remote answer.");
+                post("error", { sessionID, message: "Failed to apply remote answer: " + String(error) });
+                emitDiagnostic("remote answer apply failed");
+              }
             },
-            setIceCandidates(candidates) {
+            async setIceCandidates(candidates) {
               if (player && candidates && candidates.length) {
-                try {
-                  const normalizedCandidates = candidates.map(normalizeIceCandidate);
-                  player.setIceCandidates(normalizedCandidates);
-                  remoteCandidatesApplied += normalizedCandidates.length;
-                  remoteCandidateSummary = candidateSummary(normalizedCandidates);
-                  remoteCandidateDetail = candidateDetail(normalizedCandidates);
-                  setStatus("Remote ICE applied. Waiting for media...");
-                  emitDiagnostic("remote ICE applied");
-                  emitWebRTCStats("remote ICE stats");
-                } catch (error) {
-                  setStatus("Failed to apply remote ICE.");
-                  post("error", { sessionID, message: "Failed to apply remote ICE: " + String(error) });
-                  emitDiagnostic("remote ICE apply failed");
+                const pc = peerConnection();
+                if (!pc || !pc.addIceCandidate) {
+                  post("error", { sessionID, message: "RTCPeerConnection is unavailable." });
+                  return;
+                }
+                const normalizedCandidates = candidates.map(normalizeIceCandidate);
+                remoteCandidateSummary = candidateSummary(normalizedCandidates);
+                remoteCandidateDetail = candidateDetail(normalizedCandidates);
+
+                let applied = 0;
+                let failed = 0;
+                let fallback = 0;
+                let ended = 0;
+                let firstError = "";
+                for (const candidate of normalizedCandidates) {
+                  if (candidate.candidate === "a=end-of-candidates") {
+                    ended += 1;
+                    continue;
+                  }
+                  if (candidate.candidate.includes("UDP") && candidate.candidate.includes("tcptype")) {
+                    failed += 1;
+                    continue;
+                  }
+                  const result = await addRemoteIceCandidate(pc, candidate);
+                  if (result.applied) {
+                    applied += 1;
+                    if (result.fallback) {
+                      fallback += 1;
+                    }
+                  } else {
+                    failed += 1;
+                    if (!firstError && result.error) {
+                      firstError = result.error;
+                    }
+                  }
+                }
+                remoteCandidatesApplied += normalizedCandidates.length;
+                remoteCandidateApplySummary = "applied=" + applied + " fallback=" + fallback + " failed=" + failed + " end=" + ended;
+                setStatus("Remote ICE applied. Waiting for media...");
+                emitDiagnostic("remote ICE applied");
+                await emitWebRTCStats("remote ICE stats");
+                if (failed > 0) {
+                  post("error", { sessionID, message: "Remote ICE candidate failures: " + remoteCandidateApplySummary + (firstError ? " first=" + firstError : "") });
                 }
               }
             },
@@ -530,6 +605,7 @@ public struct CompatibilityPlayerPage: Sendable {
               remoteCandidateSummary = "none";
               localCandidateDetail = "none";
               remoteCandidateDetail = "none";
+              remoteCandidateApplySummary = "none";
               lastWebRTCStats = "none";
               publishedLocalCandidates.clear();
               setStatus("Stopped.");

@@ -124,6 +124,7 @@ public struct CompatibilityPlayerPage: Sendable {
           let player = null;
           let remoteOfferApplied = false;
           let connected = false;
+          var videoPlaying = false;
           let remoteCandidatesApplied = 0;
           let localCandidateSummary = "none";
           let remoteCandidateSummary = "none";
@@ -133,6 +134,8 @@ public struct CompatibilityPlayerPage: Sendable {
           let remoteCandidateMidSummary = "none";
           let remoteCandidateApplySummary = "none";
           let lastWebRTCStats = "none";
+          var streamStartWatchdog = null;
+          var mediaStartWatchdog = null;
           const publishedLocalCandidates = new Set();
           const appliedRemoteCandidates = new Set();
 
@@ -180,6 +183,47 @@ public struct CompatibilityPlayerPage: Sendable {
               videoCount: videos.length,
               videos
             });
+          }
+
+          function clearStreamWatchdogs() {
+            if (streamStartWatchdog) {
+              window.clearTimeout(streamStartWatchdog);
+              streamStartWatchdog = null;
+            }
+            if (mediaStartWatchdog) {
+              window.clearTimeout(mediaStartWatchdog);
+              mediaStartWatchdog = null;
+            }
+          }
+
+          function armStreamStartWatchdog() {
+            if (streamStartWatchdog) {
+              window.clearTimeout(streamStartWatchdog);
+            }
+            streamStartWatchdog = window.setTimeout(function () {
+              if (connected || videoPlaying) {
+                return;
+              }
+              setStatus("WebRTC startup timed out.");
+              post("error", { sessionID, message: "WebRTC startup timed out before connection." });
+              emitDiagnostic("startup timeout");
+              emitWebRTCStats("startup timeout stats");
+            }, 45000);
+          }
+
+          function armMediaStartWatchdog() {
+            if (mediaStartWatchdog) {
+              window.clearTimeout(mediaStartWatchdog);
+            }
+            mediaStartWatchdog = window.setTimeout(function () {
+              if (videoPlaying) {
+                return;
+              }
+              setStatus("Video startup timed out.");
+              post("error", { sessionID, message: "Video startup timed out after WebRTC connected." });
+              emitDiagnostic("video startup timeout");
+              emitWebRTCStats("video startup timeout stats");
+            }, 25000);
           }
 
           function candidateSummary(candidates) {
@@ -579,6 +623,8 @@ public struct CompatibilityPlayerPage: Sendable {
               emitDiagnostic("video loadedmetadata");
             });
             video.addEventListener("playing", function () {
+              videoPlaying = true;
+              clearStreamWatchdogs();
               setStatus("Streaming.");
               emitDiagnostic("video playing");
             });
@@ -627,7 +673,7 @@ public struct CompatibilityPlayerPage: Sendable {
           }
 
           async function exchangeLocalIceCandidates() {
-            if (!player || !remoteOfferApplied || connected) {
+            if (!player || !remoteOfferApplied) {
               return;
             }
             setStatus("Collecting local ICE candidates...");
@@ -668,6 +714,8 @@ public struct CompatibilityPlayerPage: Sendable {
                 return;
               }
               try {
+                armStreamStartWatchdog();
+                emitDiagnostic("player start requested");
                 setStatus("Creating peer connection...");
                 const Player = playerConstructor();
                 if (!Player) {
@@ -694,6 +742,7 @@ public struct CompatibilityPlayerPage: Sendable {
                     const state = event && event.state ? event.state : "unknown";
                     if (state === "connected") {
                       connected = true;
+                      armMediaStartWatchdog();
                       setStatus("Connected. Waiting for video...");
                     } else {
                       setStatus("WebRTC " + state + "...");
@@ -895,12 +944,14 @@ public struct CompatibilityPlayerPage: Sendable {
               }
             },
             stop() {
+              clearStreamWatchdogs();
               if (player && player.close) {
                 player.close();
               }
               player = null;
               remoteOfferApplied = false;
               connected = false;
+              videoPlaying = false;
               remoteCandidatesApplied = 0;
               localCandidateSummary = "none";
               remoteCandidateSummary = "none";

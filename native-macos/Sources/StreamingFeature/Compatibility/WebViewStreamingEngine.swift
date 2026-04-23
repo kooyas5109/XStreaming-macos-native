@@ -94,6 +94,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
 
     public func attach(webView: WKWebView) {
         self.webView = webView
+        logger.info("WebView streaming engine attached to WKWebView")
 
         let userScript = WKUserScript(
             source: bridgeScript,
@@ -112,12 +113,15 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         currentURL = url
         bridgeStatus = "Loading player surface..."
         bridgeError = nil
+        logger.info("Preparing WebView player page: session=\(session.id), url=\(url.absoluteString)")
 
         if let webView {
             webView.loadHTMLString(
                 playerPage.html(for: session, configuration: playerConfiguration),
                 baseURL: configuration.baseURL
             )
+        } else {
+            logger.error("Cannot load WebView player page before WKWebView is attached.")
         }
     }
 
@@ -125,29 +129,53 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         self.signaling = signaling
         bridgeStatus = "Starting player..."
         bridgeError = nil
+        logger.info("Starting WebView player: session=\(session.id), signaling=\(signaling == nil ? "missing" : "available")")
         if currentSession?.id != session.id {
             try await prepare(session: session)
         }
 
         if let webView {
-            _ = try? await webView.evaluateJavaScript("window.xstreamingNativePlayer?.start?.()")
+            do {
+                _ = try await webView.evaluateJavaScript("window.xstreamingNativePlayer?.start?.()")
+                logger.info("WebView player start script evaluated.")
+            } catch {
+                bridgeError = "Failed to start WebView player: \(error.localizedDescription)"
+                logger.error("Failed to evaluate WebView player start script: \(error.localizedDescription)")
+                throw error
+            }
+        } else {
+            bridgeError = "Cannot start WebView player before WKWebView is attached."
+            logger.error("Cannot start WebView player before WKWebView is attached.")
         }
     }
 
     public func sendControlEvent(_ event: StreamingControlEvent) async throws {
         let script = Self.controlScript(for: event)
         guard script.isEmpty == false else { return }
-        _ = try? await webView?.evaluateJavaScript(script)
+        do {
+            _ = try await webView?.evaluateJavaScript(script)
+        } catch {
+            logger.error("Failed to send WebView control event: \(error.localizedDescription)")
+            throw error
+        }
     }
 
     public func sendGamepadState(_ state: StreamingGamepadState) async {
         let script = Self.gamepadStateScript(for: state)
         logger.info("Sending keyboard gamepad state: \(Self.gamepadStateSummary(state))")
-        _ = try? await webView?.evaluateJavaScript(script)
+        do {
+            _ = try await webView?.evaluateJavaScript(script)
+        } catch {
+            logger.error("Failed to send keyboard gamepad state: \(error.localizedDescription)")
+        }
     }
 
     public func stop() async {
-        _ = try? await webView?.evaluateJavaScript("window.xstreamingNativePlayer?.stop?.()")
+        do {
+            _ = try await webView?.evaluateJavaScript("window.xstreamingNativePlayer?.stop?.()")
+        } catch {
+            logger.error("Failed to stop WebView player: \(error.localizedDescription)")
+        }
         signaling = nil
         currentSession = nil
         currentURL = nil
@@ -210,7 +238,13 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         bridgeStatus = "Remote answer received."
         logger.info("Applying remote SDP answer for session \(session.id)")
         let script = "window.xstreamingNativePlayer?.setRemoteOffer?.(\(Self.javascriptString(answer.sdp)))"
-        _ = try? await webView?.evaluateJavaScript(script)
+        do {
+            _ = try await webView?.evaluateJavaScript(script)
+        } catch {
+            bridgeError = "Failed to apply remote SDP answer in WebView: \(error.localizedDescription)"
+            logger.error("Failed to apply remote SDP answer in WebView: \(error.localizedDescription)")
+            throw error
+        }
     }
 
     private func handleICECandidates(_ payload: Any?) async throws {
@@ -243,7 +277,13 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
 
         bridgeStatus = "Remote ICE candidates received."
         let script = "window.xstreamingNativePlayer?.setIceCandidates?.(\(Self.javascriptJSON(remoteCandidates)))"
-        _ = try? await webView?.evaluateJavaScript(script)
+        do {
+            _ = try await webView?.evaluateJavaScript(script)
+        } catch {
+            bridgeError = "Failed to apply remote ICE candidates in WebView: \(error.localizedDescription)"
+            logger.error("Failed to apply remote ICE candidates in WebView: \(error.localizedDescription)")
+            throw error
+        }
     }
 
     private func bridgeFailure(_ message: String) -> WebViewStreamingEngineError {

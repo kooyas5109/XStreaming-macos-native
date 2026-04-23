@@ -92,7 +92,7 @@ public struct CompatibilityPlayerPage: Sendable {
             }
           </style>
         </head>
-        <body>
+        <body tabindex="-1">
           <div id="videoHolder"></div>
           <div class="status" id="status">Starting stream...</div>
           <script>
@@ -413,6 +413,161 @@ public struct CompatibilityPlayerPage: Sendable {
             });
           }
 
+          const nativeKeyboardPressed = new Map();
+          const nativeKeyboardOrder = [];
+          const nativeKeyboardMap = {
+            ArrowLeft: "DPadLeft",
+            ArrowUp: "DPadUp",
+            ArrowRight: "DPadRight",
+            ArrowDown: "DPadDown",
+            Enter: "A",
+            Backspace: "B",
+            k: "A",
+            l: "B",
+            j: "X",
+            i: "Y",
+            "2": "LeftShoulder",
+            "3": "RightShoulder",
+            "1": "LeftTrigger",
+            "4": "RightTrigger",
+            "5": "LeftThumb",
+            "6": "RightThumb",
+            a: "LeftThumbXAxisMinus",
+            d: "LeftThumbXAxisPlus",
+            w: "LeftThumbYAxisPlus",
+            s: "LeftThumbYAxisMinus",
+            f: "RightThumbXAxisMinus",
+            h: "RightThumbXAxisPlus",
+            t: "RightThumbYAxisPlus",
+            g: "RightThumbYAxisMinus",
+            v: "View",
+            m: "Menu",
+            n: "Nexus"
+          };
+
+          function keyIdentifier(event) {
+            if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown") {
+              return event.key;
+            }
+            if (event.key === "Enter" || event.key === "Backspace") {
+              return event.key;
+            }
+            if (event.key && event.key.length === 1) {
+              return event.key.toLowerCase();
+            }
+            return "";
+          }
+
+          function shouldIgnoreKeyboardEvent(event) {
+            if (event.metaKey || event.ctrlKey || event.altKey) {
+              return true;
+            }
+            const target = event.target;
+            const tagName = target && target.tagName ? String(target.tagName).toLowerCase() : "";
+            return tagName === "input" || tagName === "textarea" || tagName === "select" || !!(target && target.isContentEditable);
+          }
+
+          function keyboardAxisValue(negative, positive) {
+            for (let index = nativeKeyboardOrder.length - 1; index >= 0; index -= 1) {
+              const action = nativeKeyboardPressed.get(nativeKeyboardOrder[index]);
+              if (action === positive) return 1;
+              if (action === negative) return -1;
+            }
+            return 0;
+          }
+
+          function nativeKeyboardGamepadState() {
+            const state = {
+              GamepadIndex: 0,
+              A: 0,
+              B: 0,
+              X: 0,
+              Y: 0,
+              LeftShoulder: 0,
+              RightShoulder: 0,
+              LeftTrigger: 0,
+              RightTrigger: 0,
+              View: 0,
+              Menu: 0,
+              LeftThumb: 0,
+              RightThumb: 0,
+              DPadUp: 0,
+              DPadDown: 0,
+              DPadLeft: 0,
+              DPadRight: 0,
+              Nexus: 0,
+              LeftThumbXAxis: 0,
+              LeftThumbYAxis: 0,
+              RightThumbXAxis: 0,
+              RightThumbYAxis: 0,
+              PhysicalPhysicality: 0,
+              VirtualPhysicality: 0,
+              Dirty: true,
+              Virtual: true
+            };
+            nativeKeyboardPressed.forEach(function (action) {
+              if (action.indexOf("XAxis") >= 0 || action.indexOf("YAxis") >= 0) {
+                return;
+              }
+              state[action] = 1;
+            });
+            state.LeftThumbXAxis = keyboardAxisValue("LeftThumbXAxisMinus", "LeftThumbXAxisPlus");
+            state.LeftThumbYAxis = keyboardAxisValue("LeftThumbYAxisMinus", "LeftThumbYAxisPlus");
+            state.RightThumbXAxis = keyboardAxisValue("RightThumbXAxisMinus", "RightThumbXAxisPlus");
+            state.RightThumbYAxis = keyboardAxisValue("RightThumbYAxisMinus", "RightThumbYAxisPlus");
+            return state;
+          }
+
+          function updateNativeKeyboardGamepad(event, pressed) {
+            if (shouldIgnoreKeyboardEvent(event)) {
+              return;
+            }
+            const key = keyIdentifier(event);
+            const action = nativeKeyboardMap[key];
+            if (!action) {
+              return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            if (pressed) {
+              if (nativeKeyboardPressed.has(key)) {
+                return;
+              }
+              nativeKeyboardPressed.set(key, action);
+              nativeKeyboardOrder.push(key);
+            } else if (nativeKeyboardPressed.has(key)) {
+              nativeKeyboardPressed.delete(key);
+              const existingIndex = nativeKeyboardOrder.indexOf(key);
+              if (existingIndex >= 0) {
+                nativeKeyboardOrder.splice(existingIndex, 1);
+              }
+            } else {
+              return;
+            }
+            window.xstreamingNativePlayer?.setGamepadState?.(nativeKeyboardGamepadState());
+          }
+
+          function installNativeKeyboardGamepad() {
+            document.body && document.body.focus && document.body.focus({ preventScroll: true });
+            document.addEventListener("pointerdown", function () {
+              document.body && document.body.focus && document.body.focus({ preventScroll: true });
+            }, true);
+            document.addEventListener("keydown", function (event) {
+              updateNativeKeyboardGamepad(event, true);
+            }, true);
+            document.addEventListener("keyup", function (event) {
+              updateNativeKeyboardGamepad(event, false);
+            }, true);
+            window.addEventListener("blur", function () {
+              if (nativeKeyboardPressed.size === 0) {
+                return;
+              }
+              nativeKeyboardPressed.clear();
+              nativeKeyboardOrder.splice(0, nativeKeyboardOrder.length);
+              window.xstreamingNativePlayer?.setGamepadState?.(nativeKeyboardGamepadState());
+            });
+          }
+
           function observeVideoElement(video) {
             if (!video || video.dataset.nativeObserved === "true") {
               return;
@@ -704,34 +859,23 @@ public struct CompatibilityPlayerPage: Sendable {
                   LeftThumbYAxis: 0,
                   RightThumbXAxis: 0,
                   RightThumbYAxis: 0,
+                  PhysicalPhysicality: 0,
+                  VirtualPhysicality: 0,
                   Dirty: true,
                   Virtual: true
                 }, state);
-                if (input.queueGamepadState) {
-                  input.queueGamepadState(gamepadState);
-                  post("diagnostic", {
-                    sessionID,
-                    message: "native gamepad state queued",
-                    connectionState: player && player._webrtcClient ? player._webrtcClient.connectionState : "unavailable",
-                    iceConnectionState: player && player._webrtcClient ? player._webrtcClient.iceConnectionState : "unavailable",
-                    localCandidatesSent: publishedLocalCandidates.size,
-                    remoteCandidatesApplied,
-                    localCandidateSummary,
-                    remoteCandidateSummary,
-                    webRTCStats: lastWebRTCStats,
-                    videoCount: document.querySelectorAll("video").length,
-                    videos: Array.from(document.querySelectorAll("video")).map(function (video) {
-                      return {
-                        readyState: video.readyState,
-                        paused: video.paused,
-                        muted: video.muted,
-                        width: video.videoWidth,
-                        height: video.videoHeight
-                      };
-                    })
-                  });
-                } else if (input.setGamepadState) {
+                const usedSetGamepadState = !!input.setGamepadState;
+                const usedQueueGamepadState = !!input.queueGamepadState;
+                if (usedSetGamepadState) {
                   input.setGamepadState(gamepadState);
+                }
+                if (usedQueueGamepadState) {
+                  input.queueGamepadState(gamepadState);
+                }
+                if (usedSetGamepadState || usedQueueGamepadState) {
+                  emitDiagnostic("native gamepad state sent set=" + (usedSetGamepadState ? "1" : "0") + " queue=" + (usedQueueGamepadState ? "1" : "0"));
+                } else {
+                  emitDiagnostic("native gamepad state ignored no input method");
                 }
               }
             },
@@ -778,6 +922,7 @@ public struct CompatibilityPlayerPage: Sendable {
           if (window.nativeStreamingBridge) {
             window.xstreamingNativePlayer.start();
           }
+          installNativeKeyboardGamepad();
         })();
         """
     }

@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import StreamingFeature
+import SupportKit
 
 @MainActor
 final class KeyboardGamepadInputController: ObservableObject {
@@ -10,6 +11,7 @@ final class KeyboardGamepadInputController: ObservableObject {
     }
 
     private var tracker = KeyboardGamepadStateTracker()
+    private let logger = AppLogger(category: "WebRTC")
 
     func handle(_ event: NSEvent) -> Result {
         guard event.type == .keyDown || event.type == .keyUp else {
@@ -34,6 +36,9 @@ final class KeyboardGamepadInputController: ObservableObject {
         }
 
         let state = tracker.update(key: key, isPressed: event.type == .keyDown)
+        if state != nil {
+            logger.info("Keyboard gamepad input captured: key=\(key), pressed=\(event.type == .keyDown)")
+        }
         return Result(handled: state != nil, state: state)
     }
 

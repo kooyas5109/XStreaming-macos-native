@@ -619,8 +619,8 @@ public struct CompatibilityPlayerPage: Sendable {
                 return;
               }
               const input = player.getChannelProcessor && player.getChannelProcessor("input");
-              if (input && input.setGamepadState) {
-                input.setGamepadState(Object.assign({
+              if (input) {
+                const gamepadState = Object.assign({
                   GamepadIndex: 0,
                   A: 0,
                   B: 0,
@@ -645,7 +645,33 @@ public struct CompatibilityPlayerPage: Sendable {
                   RightThumbYAxis: 0,
                   Dirty: true,
                   Virtual: true
-                }, state));
+                }, state);
+                if (input.queueGamepadState) {
+                  input.queueGamepadState(gamepadState);
+                  post("diagnostic", {
+                    sessionID,
+                    message: "native gamepad state queued",
+                    connectionState: player && player._webrtcClient ? player._webrtcClient.connectionState : "unavailable",
+                    iceConnectionState: player && player._webrtcClient ? player._webrtcClient.iceConnectionState : "unavailable",
+                    localCandidatesSent: publishedLocalCandidates.size,
+                    remoteCandidatesApplied,
+                    localCandidateSummary,
+                    remoteCandidateSummary,
+                    webRTCStats: lastWebRTCStats,
+                    videoCount: document.querySelectorAll("video").length,
+                    videos: Array.from(document.querySelectorAll("video")).map(function (video) {
+                      return {
+                        readyState: video.readyState,
+                        paused: video.paused,
+                        muted: video.muted,
+                        width: video.videoWidth,
+                        height: video.videoHeight
+                      };
+                    })
+                  });
+                } else if (input.setGamepadState) {
+                  input.setGamepadState(gamepadState);
+                }
               }
             },
             setMicrophone(active) {

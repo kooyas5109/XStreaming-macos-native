@@ -782,27 +782,7 @@ private struct WebViewStreamingSurface: View {
     @State private var keyMonitor: Any?
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            StreamingWebView(engine: engine)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Label(engine.bridgeStatus, systemImage: "dot.radiowaves.left.and.right")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(.thinMaterial, in: Capsule())
-
-                if let bridgeError = engine.bridgeError {
-                    Label(bridgeError, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.red)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .background(.thinMaterial, in: Capsule())
-                }
-            }
-            .padding(14)
-        }
+        StreamingWebView(engine: engine)
         .onAppear {
             installKeyboardMonitor()
         }

@@ -145,6 +145,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
 
     public func sendGamepadState(_ state: StreamingGamepadState) async {
         let script = Self.gamepadStateScript(for: state)
+        logger.info("Sending keyboard gamepad state: \(Self.gamepadStateSummary(state))")
         _ = try? await webView?.evaluateJavaScript(script)
     }
 
@@ -401,6 +402,15 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
     private static func javascriptNumber(_ value: Double) -> String {
         let clamped = min(1, max(-1, value))
         return String(format: "%.4f", locale: Locale(identifier: "en_US_POSIX"), clamped)
+    }
+
+    private static func gamepadStateSummary(_ state: StreamingGamepadState) -> String {
+        let buttons = state.buttons
+            .map(\.rawValue)
+            .sorted()
+            .joined(separator: ",")
+        let activeButtons = buttons.isEmpty ? "none" : buttons
+        return "buttons=\(activeButtons) lt=\(state.leftTrigger) rt=\(state.rightTrigger) lx=\(state.leftThumbX) ly=\(state.leftThumbY) rx=\(state.rightThumbX) ry=\(state.rightThumbY)"
     }
 
     static func javascriptJSON(_ candidates: [StreamingICECandidate]) -> String {

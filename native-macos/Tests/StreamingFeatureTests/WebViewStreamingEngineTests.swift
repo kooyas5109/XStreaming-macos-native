@@ -94,6 +94,8 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("setVideoFormat"))
     #expect(html.contains("setButton"))
     #expect(html.contains("setGamepadState"))
+    #expect(html.contains("queueGamepadState"))
+    #expect(html.contains("native gamepad state queued"))
     #expect(html.contains("pressButtonStart"))
     #expect(html.contains("pressButtonEnd"))
     #expect(html.contains("setMicrophone"))

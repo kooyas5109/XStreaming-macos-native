@@ -92,6 +92,16 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("player bound with TURN server"))
     #expect(html.contains("player bound without TURN server"))
     #expect(html.contains("setVideoFormat"))
+    #expect(html.contains("input_mousekeyboard: !!nativePlayerConfiguration.enableNativeMouseKeyboard"))
+    #expect(html.contains("input_mousekeyboard_config: nativePlayerConfiguration.inputMouseKeyboardMapping"))
+    #expect(html.contains("setGamepadKernal"))
+    #expect(html.contains("setGamepadMix"))
+    #expect(html.contains("setGamepadIndex"))
+    #expect(html.contains("setVibration"))
+    #expect(html.contains("setVibrationMode"))
+    #expect(html.contains("setGamepadDeadZone"))
+    #expect(html.contains("setForceTriggerRumble"))
+    #expect(html.contains("gamepad configuration applied"))
     #expect(html.contains("setButton"))
     #expect(html.contains("setGamepadState"))
     #expect(html.contains("queueGamepadState"))
@@ -114,7 +124,16 @@ func compatibilityPlayerPageInjectsTurnServerConfiguration() throws {
                 username: "relay-user",
                 credential: "relay-secret"
             ),
-            videoFormat: "H264"
+            videoFormat: "H264",
+            gamepadKernel: "Web",
+            gamepadMix: true,
+            gamepadIndex: 1,
+            deadZone: 0.2,
+            vibration: false,
+            vibrationMode: "Webview",
+            forceTriggerRumble: "all",
+            enableNativeMouseKeyboard: true,
+            inputMouseKeyboardMapping: InputMouseKeyboardMapping(mapping: ["w": "LeftThumbYAxisPlus"])
         )
     )
 
@@ -122,6 +141,15 @@ func compatibilityPlayerPageInjectsTurnServerConfiguration() throws {
     #expect(html.contains("\"username\":\"relay-user\""))
     #expect(html.contains("\"credential\":\"relay-secret\""))
     #expect(html.contains("\"videoFormat\":\"H264\""))
+    #expect(html.contains("\"gamepadKernel\":\"Web\""))
+    #expect(html.contains("\"gamepadMix\":true"))
+    #expect(html.contains("\"gamepadIndex\":1"))
+    #expect(html.contains("\"deadZone\":0.2"))
+    #expect(html.contains("\"vibration\":false"))
+    #expect(html.contains("\"vibrationMode\":\"Webview\""))
+    #expect(html.contains("\"forceTriggerRumble\":\"all\""))
+    #expect(html.contains("\"enableNativeMouseKeyboard\":true"))
+    #expect(html.contains("\"inputMouseKeyboardMapping\":{\"w\":\"LeftThumbYAxisPlus\"}"))
 }
 
 @Test
@@ -152,19 +180,19 @@ func compatibilityEngineAppliesSettingsToPlayerConfiguration() async {
         codec: AppSettings.defaults.codec,
         pollingRate: AppSettings.defaults.pollingRate,
         coop: AppSettings.defaults.coop,
-        vibration: AppSettings.defaults.vibration,
+        vibration: false,
         vibrationMode: AppSettings.defaults.vibrationMode,
-        gamepadKernel: AppSettings.defaults.gamepadKernel,
-        gamepadMix: AppSettings.defaults.gamepadMix,
-        gamepadIndex: AppSettings.defaults.gamepadIndex,
-        deadZone: AppSettings.defaults.deadZone,
+        gamepadKernel: "Native",
+        gamepadMix: true,
+        gamepadIndex: 1,
+        deadZone: 0.2,
         edgeCompensation: AppSettings.defaults.edgeCompensation,
-        forceTriggerRumble: AppSettings.defaults.forceTriggerRumble,
+        forceTriggerRumble: "all",
         powerOn: AppSettings.defaults.powerOn,
         videoFormat: "H265",
         virtualGamepadOpacity: AppSettings.defaults.virtualGamepadOpacity,
         ipv6: AppSettings.defaults.ipv6,
-        enableNativeMouseKeyboard: AppSettings.defaults.enableNativeMouseKeyboard,
+        enableNativeMouseKeyboard: true,
         mouseSensitive: AppSettings.defaults.mouseSensitive,
         performanceStyle: AppSettings.defaults.performanceStyle,
         turnServer: TurnServerConfiguration(
@@ -173,7 +201,7 @@ func compatibilityEngineAppliesSettingsToPlayerConfiguration() async {
             credential: "relay-secret"
         ),
         backgroundKeepalive: AppSettings.defaults.backgroundKeepalive,
-        inputMouseKeyboardMapping: AppSettings.defaults.inputMouseKeyboardMapping,
+        inputMouseKeyboardMapping: InputMouseKeyboardMapping(mapping: ["w": "LeftThumbYAxisPlus"]),
         displayOptions: AppSettings.defaults.displayOptions,
         useVulkan: AppSettings.defaults.useVulkan,
         fsr: AppSettings.defaults.fsr,
@@ -185,6 +213,15 @@ func compatibilityEngineAppliesSettingsToPlayerConfiguration() async {
 
     #expect(engine.playerConfiguration.videoFormat == "H265")
     #expect(engine.playerConfiguration.turnServer.url == "turn:relay.example.com")
+    #expect(engine.playerConfiguration.gamepadKernel == "Web")
+    #expect(engine.playerConfiguration.gamepadMix == true)
+    #expect(engine.playerConfiguration.gamepadIndex == 1)
+    #expect(engine.playerConfiguration.deadZone == 0.2)
+    #expect(engine.playerConfiguration.vibration == false)
+    #expect(engine.playerConfiguration.vibrationMode == "Webview")
+    #expect(engine.playerConfiguration.forceTriggerRumble == "all")
+    #expect(engine.playerConfiguration.enableNativeMouseKeyboard == true)
+    #expect(engine.playerConfiguration.inputMouseKeyboardMapping.mapping["w"] == "LeftThumbYAxisPlus")
 }
 
 @Test

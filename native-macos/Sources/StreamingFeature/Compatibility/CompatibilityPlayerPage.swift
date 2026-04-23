@@ -4,19 +4,55 @@ import SharedDomain
 public struct CompatibilityPlayerConfiguration: Equatable, Sendable {
     public let turnServer: TurnServerConfiguration
     public let videoFormat: String
+    public let gamepadKernel: String
+    public let gamepadMix: Bool
+    public let gamepadIndex: Int
+    public let deadZone: Double
+    public let vibration: Bool
+    public let vibrationMode: String
+    public let forceTriggerRumble: String
+    public let enableNativeMouseKeyboard: Bool
+    public let inputMouseKeyboardMapping: InputMouseKeyboardMapping
 
     public init(
         turnServer: TurnServerConfiguration = TurnServerConfiguration(),
-        videoFormat: String = ""
+        videoFormat: String = "",
+        gamepadKernel: String = "Web",
+        gamepadMix: Bool = false,
+        gamepadIndex: Int = -1,
+        deadZone: Double = 0.1,
+        vibration: Bool = true,
+        vibrationMode: String = "Webview",
+        forceTriggerRumble: String = "",
+        enableNativeMouseKeyboard: Bool = false,
+        inputMouseKeyboardMapping: InputMouseKeyboardMapping = InputMouseKeyboardMapping(mapping: [:])
     ) {
         self.turnServer = turnServer
         self.videoFormat = videoFormat
+        self.gamepadKernel = gamepadKernel
+        self.gamepadMix = gamepadMix
+        self.gamepadIndex = gamepadIndex
+        self.deadZone = deadZone
+        self.vibration = vibration
+        self.vibrationMode = vibrationMode
+        self.forceTriggerRumble = forceTriggerRumble
+        self.enableNativeMouseKeyboard = enableNativeMouseKeyboard
+        self.inputMouseKeyboardMapping = inputMouseKeyboardMapping
     }
 
-    public init(settings: AppSettings) {
+    public init(settings: AppSettings, turnServer: TurnServerConfiguration? = nil) {
         self.init(
-            turnServer: settings.turnServer,
-            videoFormat: settings.videoFormat
+            turnServer: turnServer ?? settings.turnServer,
+            videoFormat: settings.videoFormat,
+            gamepadKernel: "Web",
+            gamepadMix: settings.gamepadMix,
+            gamepadIndex: settings.gamepadIndex,
+            deadZone: settings.deadZone,
+            vibration: settings.vibration,
+            vibrationMode: "Webview",
+            forceTriggerRumble: settings.forceTriggerRumble,
+            enableNativeMouseKeyboard: settings.enableNativeMouseKeyboard,
+            inputMouseKeyboardMapping: settings.inputMouseKeyboardMapping
         )
     }
 }
@@ -485,8 +521,9 @@ public struct CompatibilityPlayerPage: Sendable {
                 player = new Player("videoHolder", {
                   input_touch: false,
                   ui_touchenabled: false,
-                  input_mousekeyboard: false,
-                  input_legacykeyboard: true
+                  input_mousekeyboard: !!nativePlayerConfiguration.enableNativeMouseKeyboard,
+                  input_legacykeyboard: true,
+                  input_mousekeyboard_config: nativePlayerConfiguration.inputMouseKeyboardMapping || {}
                 });
                 observeVideoHolder();
                 if (player.setConnectFailHandler) {
@@ -519,6 +556,30 @@ public struct CompatibilityPlayerPage: Sendable {
                 if (nativePlayerConfiguration.videoFormat && player.setVideoFormat) {
                   player.setVideoFormat(nativePlayerConfiguration.videoFormat);
                 }
+                if (player.setGamepadKernal) {
+                  player.setGamepadKernal(nativePlayerConfiguration.gamepadKernel || "Web");
+                }
+                if (player.setGamepadMix) {
+                  player.setGamepadMix(!!nativePlayerConfiguration.gamepadMix);
+                }
+                if (player.setGamepadIndex) {
+                  const gamepadIndex = Number(nativePlayerConfiguration.gamepadIndex);
+                  player.setGamepadIndex(Number.isFinite(gamepadIndex) ? gamepadIndex : -1);
+                }
+                if (player.setVibration) {
+                  player.setVibration(!!nativePlayerConfiguration.vibration);
+                }
+                if (player.setVibrationMode) {
+                  player.setVibrationMode(nativePlayerConfiguration.vibrationMode || "Webview");
+                }
+                if (player.setGamepadDeadZone) {
+                  const deadZone = Number(nativePlayerConfiguration.deadZone);
+                  player.setGamepadDeadZone(Number.isFinite(deadZone) ? deadZone : 0.1);
+                }
+                if (nativePlayerConfiguration.forceTriggerRumble && player.setForceTriggerRumble) {
+                  player.setForceTriggerRumble(nativePlayerConfiguration.forceTriggerRumble);
+                }
+                emitDiagnostic("gamepad configuration applied");
                 const offer = await player.createOffer();
                 post("sdp-offer", { sessionID, sdp: offer.sdp || "" });
                 setStatus("Waiting for console answer...");
@@ -728,6 +789,15 @@ public struct CompatibilityPlayerPage: Sendable {
 
     private static func javascriptJSON(_ configuration: CompatibilityPlayerConfiguration) -> String {
         var object: [String: Any] = [
+            "deadZone": configuration.deadZone,
+            "enableNativeMouseKeyboard": configuration.enableNativeMouseKeyboard,
+            "forceTriggerRumble": configuration.forceTriggerRumble,
+            "gamepadIndex": configuration.gamepadIndex,
+            "gamepadKernel": configuration.gamepadKernel,
+            "gamepadMix": configuration.gamepadMix,
+            "inputMouseKeyboardMapping": configuration.inputMouseKeyboardMapping.mapping,
+            "vibration": configuration.vibration,
+            "vibrationMode": configuration.vibrationMode,
             "videoFormat": configuration.videoFormat
         ]
 

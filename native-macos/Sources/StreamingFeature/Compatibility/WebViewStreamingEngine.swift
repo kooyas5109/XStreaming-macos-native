@@ -87,10 +87,7 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
             }
         }
 
-        playerConfiguration = CompatibilityPlayerConfiguration(
-            turnServer: turnServer,
-            videoFormat: settings.videoFormat
-        )
+        playerConfiguration = CompatibilityPlayerConfiguration(settings: settings, turnServer: turnServer)
         let videoFormat = playerConfiguration.videoFormat.isEmpty ? "default" : playerConfiguration.videoFormat
         logger.info("Configured WebView player: turn=\(turnMode), videoFormat=\(videoFormat)")
     }

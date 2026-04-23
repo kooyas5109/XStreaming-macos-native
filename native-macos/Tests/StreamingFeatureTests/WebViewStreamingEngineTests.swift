@@ -93,6 +93,7 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("player bound without TURN server"))
     #expect(html.contains("setVideoFormat"))
     #expect(html.contains("setButton"))
+    #expect(html.contains("setGamepadState"))
     #expect(html.contains("pressButtonStart"))
     #expect(html.contains("pressButtonEnd"))
     #expect(html.contains("setMicrophone"))
@@ -247,6 +248,35 @@ func compatibilityEngineBuildsPhaseAwareButtonScripts() {
     #expect(releaseScript.contains("\"ended\""))
     #expect(microphoneScript.contains("setMicrophone"))
     #expect(microphoneScript.contains("true"))
+}
+
+@Test
+@MainActor
+func compatibilityEngineBuildsGamepadStateScripts() {
+    let script = WebViewStreamingEngine.gamepadStateScript(
+        for: StreamingGamepadState(
+            buttons: [.buttonA, .dpadUp, .nexus],
+            leftThumbX: -1,
+            leftThumbY: 1,
+            rightThumbX: 0.5,
+            rightThumbY: -0.5,
+            leftTrigger: 1,
+            rightTrigger: 0.25
+        )
+    )
+
+    #expect(script.contains("setGamepadState"))
+    #expect(script.contains("A: 1"))
+    #expect(script.contains("DPadUp: 1"))
+    #expect(script.contains("Nexus: 1"))
+    #expect(script.contains("LeftTrigger: 1.0000"))
+    #expect(script.contains("RightTrigger: 0.2500"))
+    #expect(script.contains("LeftThumbXAxis: -1.0000"))
+    #expect(script.contains("LeftThumbYAxis: 1.0000"))
+    #expect(script.contains("RightThumbXAxis: 0.5000"))
+    #expect(script.contains("RightThumbYAxis: -0.5000"))
+    #expect(script.contains("Dirty: true"))
+    #expect(script.contains("Virtual: true"))
 }
 
 @Test

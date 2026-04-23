@@ -1,4 +1,5 @@
 import ConsoleFeature
+import AppKit
 import PersistenceKit
 import SharedDomain
 import SettingsFeature
@@ -777,6 +778,8 @@ public struct StreamContainerView: View {
 
 private struct WebViewStreamingSurface: View {
     @ObservedObject var engine: WebViewStreamingEngine
+    @StateObject private var keyboardInput = KeyboardGamepadInputController()
+    @State private var keyMonitor: Any?
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -799,6 +802,50 @@ private struct WebViewStreamingSurface: View {
                 }
             }
             .padding(14)
+        }
+        .onAppear {
+            installKeyboardMonitor()
+        }
+        .onDisappear {
+            removeKeyboardMonitor()
+            releaseKeyboardState()
+        }
+    }
+
+    private func installKeyboardMonitor() {
+        guard keyMonitor == nil else {
+            return
+        }
+
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
+            let result = keyboardInput.handle(event)
+            guard result.handled else {
+                return event
+            }
+
+            if let state = result.state {
+                Task { @MainActor in
+                    await engine.sendGamepadState(state)
+                }
+            }
+            return nil
+        }
+    }
+
+    private func removeKeyboardMonitor() {
+        guard let keyMonitor else {
+            return
+        }
+        NSEvent.removeMonitor(keyMonitor)
+        self.keyMonitor = nil
+    }
+
+    private func releaseKeyboardState() {
+        guard let state = keyboardInput.reset() else {
+            return
+        }
+        Task { @MainActor in
+            await engine.sendGamepadState(state)
         }
     }
 }

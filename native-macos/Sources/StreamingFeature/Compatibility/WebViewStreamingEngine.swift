@@ -143,6 +143,11 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         _ = try? await webView?.evaluateJavaScript(script)
     }
 
+    public func sendGamepadState(_ state: StreamingGamepadState) async {
+        let script = Self.gamepadStateScript(for: state)
+        _ = try? await webView?.evaluateJavaScript(script)
+    }
+
     public func stop() async {
         _ = try? await webView?.evaluateJavaScript("window.xstreamingNativePlayer?.stop?.()")
         signaling = nil
@@ -353,9 +358,49 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         }
     }
 
+    static func gamepadStateScript(for state: StreamingGamepadState) -> String {
+        let buttonValue: (StreamingControlButton) -> String = { button in
+            state.buttons.contains(button) ? "1" : "0"
+        }
+
+        return """
+        window.xstreamingNativePlayer?.setGamepadState?.({
+          GamepadIndex: \(state.gamepadIndex),
+          A: \(buttonValue(.buttonA)),
+          B: \(buttonValue(.buttonB)),
+          X: \(buttonValue(.buttonX)),
+          Y: \(buttonValue(.buttonY)),
+          LeftShoulder: \(buttonValue(.leftShoulder)),
+          RightShoulder: \(buttonValue(.rightShoulder)),
+          LeftTrigger: \(javascriptNumber(state.leftTrigger)),
+          RightTrigger: \(javascriptNumber(state.rightTrigger)),
+          View: \(buttonValue(.view)),
+          Menu: \(buttonValue(.menu)),
+          LeftThumb: \(buttonValue(.leftThumbPress)),
+          RightThumb: \(buttonValue(.rightThumbPress)),
+          DPadUp: \(buttonValue(.dpadUp)),
+          DPadDown: \(buttonValue(.dpadDown)),
+          DPadLeft: \(buttonValue(.dpadLeft)),
+          DPadRight: \(buttonValue(.dpadRight)),
+          Nexus: \(buttonValue(.nexus)),
+          LeftThumbXAxis: \(javascriptNumber(state.leftThumbX)),
+          LeftThumbYAxis: \(javascriptNumber(state.leftThumbY)),
+          RightThumbXAxis: \(javascriptNumber(state.rightThumbX)),
+          RightThumbYAxis: \(javascriptNumber(state.rightThumbY)),
+          Dirty: true,
+          Virtual: true
+        })
+        """
+    }
+
     private static func javascriptString(_ value: String) -> String {
         let data = try? JSONEncoder().encode(value)
         return data.flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
+    }
+
+    private static func javascriptNumber(_ value: Double) -> String {
+        let clamped = min(1, max(-1, value))
+        return String(format: "%.4f", locale: Locale(identifier: "en_US_POSIX"), clamped)
     }
 
     static func javascriptJSON(_ candidates: [StreamingICECandidate]) -> String {

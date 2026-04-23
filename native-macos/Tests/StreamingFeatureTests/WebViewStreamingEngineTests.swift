@@ -351,6 +351,32 @@ func compatibilityEngineExchangesSDPOffersFromBridge() async throws {
 
 @Test
 @MainActor
+func compatibilityEngineRecordsMissingSignalingBridgeFailures() async throws {
+    let engine = WebViewStreamingEngine(
+        configuration: .preview,
+        bridgeScript: "window.nativeStreamingBridge = {};",
+        playerPage: CompatibilityPlayerPage(playerScript: "function xStreamingPlayer() {}")
+    )
+    try await engine.prepare(session: StreamingFixtures.startedSession)
+
+    do {
+        try await engine.handleBridgeMessage([
+            "type": "sdp-offer",
+            "payload": [
+                "sessionID": "stream-session-1",
+                "sdp": "v=0\r\ncompat-offer"
+            ]
+        ])
+        Issue.record("Expected missing signaling bridge failure.")
+    } catch {
+        #expect(error as? WebViewStreamingEngineError == .invalidBridgeMessage)
+    }
+
+    #expect(engine.bridgeError == "Cannot exchange SDP offer: missing signaling client.")
+}
+
+@Test
+@MainActor
 func compatibilityEngineRecordsBridgeStatusAndErrors() async throws {
     let engine = WebViewStreamingEngine(
         configuration: .preview,

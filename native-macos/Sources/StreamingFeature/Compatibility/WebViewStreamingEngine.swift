@@ -192,29 +192,39 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
     }
 
     private func handleSDPOffer(_ payload: Any?) async throws {
+        guard let session = currentSession else {
+            throw bridgeFailure("Cannot exchange SDP offer: missing current session.")
+        }
+        guard let signaling else {
+            throw bridgeFailure("Cannot exchange SDP offer: missing signaling client.")
+        }
         guard
-            let session = currentSession,
-            let signaling,
             let payload = payload as? [String: Any],
             let sdp = payload["sdp"] as? String
         else {
-            throw WebViewStreamingEngineError.invalidBridgeMessage
+            throw bridgeFailure("Cannot exchange SDP offer: invalid bridge payload.")
         }
 
+        logger.info("Exchanging SDP offer for session \(session.id)")
         let answer = try await signaling.exchangeSDP(sessionID: session.id, offerSDP: sdp)
         bridgeStatus = "Remote answer received."
+        logger.info("Applying remote SDP answer for session \(session.id)")
         let script = "window.xstreamingNativePlayer?.setRemoteOffer?.(\(Self.javascriptString(answer.sdp)))"
         _ = try? await webView?.evaluateJavaScript(script)
     }
 
     private func handleICECandidates(_ payload: Any?) async throws {
+        guard let session = currentSession else {
+            throw bridgeFailure("Cannot exchange ICE candidates: missing current session.")
+        }
+        guard let signaling else {
+            throw bridgeFailure("Cannot exchange ICE candidates: missing signaling client.")
+        }
         guard
-            let session = currentSession,
-            let signaling,
             let payload = payload as? [String: Any],
             let rawCandidates = payload["candidates"] as? [[String: Any]]
         else {
-            throw WebViewStreamingEngineError.invalidBridgeMessage
+            throw bridgeFailure("Cannot exchange ICE candidates: invalid bridge payload.")
         }
 
         let candidates = rawCandidates.compactMap(Self.makeICECandidate)
@@ -234,6 +244,12 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
         bridgeStatus = "Remote ICE candidates received."
         let script = "window.xstreamingNativePlayer?.setIceCandidates?.(\(Self.javascriptJSON(remoteCandidates)))"
         _ = try? await webView?.evaluateJavaScript(script)
+    }
+
+    private func bridgeFailure(_ message: String) -> WebViewStreamingEngineError {
+        bridgeError = message
+        logger.error("WebView bridge failure: \(message)")
+        return .invalidBridgeMessage
     }
 
     private func bridgeMessage(from payload: Any?) -> String? {
@@ -426,7 +442,13 @@ public final class WebViewStreamingEngine: NSObject, ObservableObject, Streaming
 extension WebViewStreamingEngine: WKScriptMessageHandler {
     public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         Task { @MainActor in
-            try? await handleBridgeMessage(message.body)
+            do {
+                try await handleBridgeMessage(message.body)
+            } catch {
+                let message = "WebView bridge message failed: \(String(describing: error))"
+                bridgeError = message
+                logger.error("\(message)")
+            }
         }
     }
 }

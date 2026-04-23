@@ -52,12 +52,7 @@ public struct CompatibilityPlayerPage: Sendable {
               width: 100% !important;
             }
             .status {
-              color: rgba(255, 255, 255, 0.82);
-              font: 14px -apple-system, BlinkMacSystemFont, sans-serif;
-              left: 18px;
-              position: fixed;
-              top: 18px;
-              z-index: 4;
+              display: none;
             }
           </style>
         </head>
@@ -98,9 +93,12 @@ public struct CompatibilityPlayerPage: Sendable {
           let remoteCandidateSummary = "none";
           let localCandidateDetail = "none";
           let remoteCandidateDetail = "none";
+          let localCandidateMidSummary = "none";
+          let remoteCandidateMidSummary = "none";
           let remoteCandidateApplySummary = "none";
           let lastWebRTCStats = "none";
           const publishedLocalCandidates = new Set();
+          const appliedRemoteCandidates = new Set();
 
           function post(type, payload) {
             const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.streamingBridge;
@@ -139,6 +137,8 @@ public struct CompatibilityPlayerPage: Sendable {
               remoteCandidateSummary,
               localCandidateDetail,
               remoteCandidateDetail,
+              localCandidateMidSummary,
+              remoteCandidateMidSummary,
               remoteCandidateApplySummary,
               webRTCStats: lastWebRTCStats,
               videoCount: videos.length,
@@ -209,6 +209,20 @@ public struct CompatibilityPlayerPage: Sendable {
             return Object.keys(counts)
               .sort()
               .slice(0, 16)
+              .map(function (key) { return key + "x" + counts[key]; })
+              .join(",") || "none";
+          }
+
+          function candidateMidSummary(candidates) {
+            const counts = {};
+            candidates.forEach(function (candidate) {
+              const mid = String(candidate && candidate.sdpMid != null ? candidate.sdpMid : "nil");
+              const index = String(candidate && candidate.sdpMLineIndex != null ? candidate.sdpMLineIndex : "nil");
+              const key = "mid=" + mid + "/m=" + index;
+              counts[key] = (counts[key] || 0) + 1;
+            });
+            return Object.keys(counts)
+              .sort()
               .map(function (key) { return key + "x" + counts[key]; })
               .join(",") || "none";
           }
@@ -340,6 +354,23 @@ public struct CompatibilityPlayerPage: Sendable {
               });
           }
 
+          function publishLocalIceCandidates(candidates, label) {
+            const unpublished = candidates.filter(function (candidate) {
+              return !publishedLocalCandidates.has(candidateKey(candidate));
+            });
+            if (unpublished.length === 0) {
+              emitDiagnostic(label + " no new candidates");
+              return;
+            }
+
+            unpublished.forEach(function (candidate) {
+              publishedLocalCandidates.add(candidateKey(candidate));
+            });
+            setStatus("Sending " + unpublished.length + " local ICE candidates...");
+            post("ice-candidates", { sessionID, candidates: unpublished });
+            emitDiagnostic(label);
+          }
+
           function wait(milliseconds) {
             return new Promise(function (resolve) {
               window.setTimeout(resolve, milliseconds);
@@ -420,7 +451,9 @@ public struct CompatibilityPlayerPage: Sendable {
               candidates = collectLocalIceCandidates();
               localCandidateSummary = candidateSummary(candidates);
               localCandidateDetail = candidateDetail(candidates);
+              localCandidateMidSummary = candidateMidSummary(candidates);
               emitDiagnostic("local ICE collection");
+              publishLocalIceCandidates(candidates, "local ICE publish update");
 
               const hasRelay = localCandidateSummary.indexOf("relay=0") === -1;
               if (candidates.length > 0 && candidates.length === previousCount && hasRelay) {
@@ -429,15 +462,10 @@ public struct CompatibilityPlayerPage: Sendable {
               previousCount = candidates.length;
             }
 
-            candidates.forEach(function (candidate) {
-              publishedLocalCandidates.add(candidateKey(candidate));
-            });
             localCandidateSummary = candidateSummary(candidates);
             localCandidateDetail = candidateDetail(candidates);
-            if (candidates.length > 0) {
-              setStatus("Sending " + candidates.length + " local ICE candidates...");
-              post("ice-candidates", { sessionID, candidates });
-            } else {
+            localCandidateMidSummary = candidateMidSummary(candidates);
+            if (publishedLocalCandidates.size === 0) {
               setStatus("No local ICE candidates were gathered.");
             }
             emitDiagnostic("local ICE publish complete");
@@ -527,15 +555,22 @@ public struct CompatibilityPlayerPage: Sendable {
                 const normalizedCandidates = candidates.map(normalizeIceCandidate);
                 remoteCandidateSummary = candidateSummary(normalizedCandidates);
                 remoteCandidateDetail = candidateDetail(normalizedCandidates);
+                remoteCandidateMidSummary = candidateMidSummary(normalizedCandidates);
 
                 let applied = 0;
                 let failed = 0;
                 let fallback = 0;
                 let ended = 0;
+                let skipped = 0;
                 let firstError = "";
                 for (const candidate of normalizedCandidates) {
                   if (candidate.candidate === "a=end-of-candidates") {
                     ended += 1;
+                    continue;
+                  }
+                  const key = candidateKey(candidate);
+                  if (appliedRemoteCandidates.has(key)) {
+                    skipped += 1;
                     continue;
                   }
                   if (candidate.candidate.includes("UDP") && candidate.candidate.includes("tcptype")) {
@@ -545,6 +580,7 @@ public struct CompatibilityPlayerPage: Sendable {
                   const result = await addRemoteIceCandidate(pc, candidate);
                   if (result.applied) {
                     applied += 1;
+                    appliedRemoteCandidates.add(key);
                     if (result.fallback) {
                       fallback += 1;
                     }
@@ -556,7 +592,7 @@ public struct CompatibilityPlayerPage: Sendable {
                   }
                 }
                 remoteCandidatesApplied += normalizedCandidates.length;
-                remoteCandidateApplySummary = "applied=" + applied + " fallback=" + fallback + " failed=" + failed + " end=" + ended;
+                remoteCandidateApplySummary = "applied=" + applied + " fallback=" + fallback + " failed=" + failed + " skipped=" + skipped + " end=" + ended;
                 setStatus("Remote ICE applied. Waiting for media...");
                 emitDiagnostic("remote ICE applied");
                 await emitWebRTCStats("remote ICE stats");
@@ -605,9 +641,12 @@ public struct CompatibilityPlayerPage: Sendable {
               remoteCandidateSummary = "none";
               localCandidateDetail = "none";
               remoteCandidateDetail = "none";
+              localCandidateMidSummary = "none";
+              remoteCandidateMidSummary = "none";
               remoteCandidateApplySummary = "none";
               lastWebRTCStats = "none";
               publishedLocalCandidates.clear();
+              appliedRemoteCandidates.clear();
               setStatus("Stopped.");
             }
           };

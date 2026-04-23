@@ -58,15 +58,21 @@ func compatibilityPlayerPageBootstrapsXStreamingPlayer() throws {
     #expect(html.contains("sdp-offer"))
     #expect(html.contains("ice-candidates"))
     #expect(html.contains("publishedLocalCandidates"))
+    #expect(html.contains("<div class=\"status\" id=\"status\">Starting stream...</div>"))
+    #expect(html.contains("display: none;"))
     #expect(html.contains("collectLocalIceCandidates"))
     #expect(html.contains("exchangeLocalIceCandidates"))
     #expect(html.contains("local ICE collection"))
     #expect(html.contains("local ICE publish complete"))
     #expect(html.contains("candidateSummary"))
     #expect(html.contains("candidateDetail"))
+    #expect(html.contains("candidateMidSummary"))
     #expect(html.contains("localCandidateDetail"))
     #expect(html.contains("remoteCandidateDetail"))
+    #expect(html.contains("localCandidateMidSummary"))
+    #expect(html.contains("remoteCandidateMidSummary"))
     #expect(html.contains("remoteCandidateApplySummary"))
+    #expect(html.contains("publishLocalIceCandidates"))
     #expect(html.contains("applyRemoteDescription"))
     #expect(html.contains("addRemoteIceCandidate"))
     #expect(html.contains("emitWebRTCStats"))
@@ -345,9 +351,11 @@ func compatibilityEngineSummarizesRemoteCandidateDiagnostics() async throws {
             "remoteCandidatesApplied": 3,
             "localCandidateSummary": "total=27 host=8 srflx=19 relay=0 prflx=0 udp=27 tcp=0 end=0",
             "localCandidateDetail": "host/udp/f1/p9002x1,srflx/udp/f2/p53000x1",
+            "localCandidateMidSummary": "mid=0/m=0x27",
             "remoteCandidateSummary": "total=12 host=12 srflx=0 relay=0 prflx=0 udp=12 tcp=0 end=1",
             "remoteCandidateDetail": "host/udp/f1/p9002x1",
-            "remoteCandidateApplySummary": "applied=11 fallback=0 failed=0 end=1",
+            "remoteCandidateMidSummary": "mid=0/m=0x12",
+            "remoteCandidateApplySummary": "applied=11 fallback=0 failed=0 skipped=0 end=1",
             "webRTCStats": "local(host=8,srflx=19,relay=0) remote(host=12,srflx=0,relay=0) pairs=0 nominated=0 selected=0",
             "videoCount": 1,
             "videos": [
@@ -360,7 +368,7 @@ func compatibilityEngineSummarizesRemoteCandidateDiagnostics() async throws {
         ]
     ])
 
-    #expect(engine.bridgeStatus == "remote ICE applied | pc=connecting ice=checking local=27 remote=3 videos=1 ready=0 size=0x0 localICE[total=27 host=8 srflx=19 relay=0 prflx=0 udp=27 tcp=0 end=0] localDetail[host/udp/f1/p9002x1,srflx/udp/f2/p53000x1] remoteICE[total=12 host=12 srflx=0 relay=0 prflx=0 udp=12 tcp=0 end=1] remoteDetail[host/udp/f1/p9002x1] remoteApply[applied=11 fallback=0 failed=0 end=1] stats[local(host=8,srflx=19,relay=0) remote(host=12,srflx=0,relay=0) pairs=0 nominated=0 selected=0]")
+    #expect(engine.bridgeStatus == "remote ICE applied | pc=connecting ice=checking local=27 remote=3 videos=1 ready=0 size=0x0 localICE[total=27 host=8 srflx=19 relay=0 prflx=0 udp=27 tcp=0 end=0] localDetail[host/udp/f1/p9002x1,srflx/udp/f2/p53000x1] localMid[mid=0/m=0x27] remoteICE[total=12 host=12 srflx=0 relay=0 prflx=0 udp=12 tcp=0 end=1] remoteDetail[host/udp/f1/p9002x1] remoteMid[mid=0/m=0x12] remoteApply[applied=11 fallback=0 failed=0 skipped=0 end=1] stats[local(host=8,srflx=19,relay=0) remote(host=12,srflx=0,relay=0) pairs=0 nominated=0 selected=0]")
 }
 
 @Test

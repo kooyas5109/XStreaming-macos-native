@@ -18,16 +18,14 @@ final class KeyboardGamepadInputController: ObservableObject {
             return Result(handled: false, state: nil)
         }
 
-        guard isTextInputActive == false else {
-            return Result(handled: false, state: nil)
-        }
-
         let blockedModifiers: NSEvent.ModifierFlags = [.command, .control, .option]
         guard event.modifierFlags.intersection(blockedModifiers).isEmpty else {
+            logger.info("Keyboard gamepad input ignored due to blocked modifiers: keyCode=\(event.keyCode)")
             return Result(handled: false, state: nil)
         }
 
         guard let key = keyIdentifier(for: event) else {
+            logger.info("Keyboard gamepad input ignored because key is unmapped: keyCode=\(event.keyCode)")
             return Result(handled: false, state: nil)
         }
 
@@ -44,13 +42,6 @@ final class KeyboardGamepadInputController: ObservableObject {
 
     func reset() -> StreamingGamepadState? {
         tracker.reset()
-    }
-
-    private var isTextInputActive: Bool {
-        guard let responder = NSApp.keyWindow?.firstResponder else {
-            return false
-        }
-        return responder is NSTextView || responder is NSTextField
     }
 
     private func keyIdentifier(for event: NSEvent) -> String? {

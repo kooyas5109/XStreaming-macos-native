@@ -43,8 +43,24 @@ private final class KeyboardCapturingWebView: WKWebView {
     var onKeyEvent: ((NSEvent) -> Bool)?
     private let logger = AppLogger(category: "WebRTC")
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+
     override var acceptsFirstResponder: Bool {
         true
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        let became = super.becomeFirstResponder()
+        logger.info("Streaming WebView becomeFirstResponder=\(became ? "1" : "0")")
+        return became
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let resigned = super.resignFirstResponder()
+        logger.info("Streaming WebView resignFirstResponder=\(resigned ? "1" : "0")")
+        return resigned
     }
 
     override func viewDidMoveToWindow() {
@@ -53,12 +69,14 @@ private final class KeyboardCapturingWebView: WKWebView {
             guard let self else {
                 return
             }
+            self.window?.makeFirstResponder(nil)
             self.window?.makeFirstResponder(self)
             self.logger.info("Streaming WebView requested first responder")
         }
     }
 
     override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(nil)
         window?.makeFirstResponder(self)
         logger.info("Streaming WebView mouse focus requested")
         super.mouseDown(with: event)

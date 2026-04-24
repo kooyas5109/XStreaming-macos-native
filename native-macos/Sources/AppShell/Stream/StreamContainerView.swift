@@ -83,7 +83,6 @@ public struct StreamContainerView: View {
         }
         .background(.black)
         .task {
-            WindowControls.focusActiveWindow()
             loadSettings()
             refreshPerformance(for: state)
             registerCommands()
@@ -556,7 +555,6 @@ public struct StreamContainerView: View {
         errorMessage = nil
 
         do {
-            WindowControls.focusActiveWindow()
             if settings.fullscreen {
                 WindowControls.enterFullscreenIfNeeded()
             }
@@ -777,7 +775,6 @@ private struct WebViewStreamingSurface: View {
     var body: some View {
         StreamingWebView(engine: engine, onKeyEvent: handleKeyEvent)
         .onAppear {
-            WindowControls.focusActiveWindow()
             installKeyboardMonitor()
         }
         .onDisappear {

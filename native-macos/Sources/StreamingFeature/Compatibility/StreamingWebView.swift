@@ -34,6 +34,8 @@ public struct StreamingWebView: NSViewRepresentable {
             onKeyEvent?(event) ?? false
         }
         DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            webView.window?.makeKeyAndOrderFront(nil)
             webView.window?.makeFirstResponder(webView)
         }
     }
@@ -69,6 +71,8 @@ private final class KeyboardCapturingWebView: WKWebView {
             guard let self else {
                 return
             }
+            NSApp.activate(ignoringOtherApps: true)
+            self.window?.makeKeyAndOrderFront(nil)
             self.window?.makeFirstResponder(nil)
             self.window?.makeFirstResponder(self)
             self.logger.info("Streaming WebView requested first responder")
@@ -76,6 +80,8 @@ private final class KeyboardCapturingWebView: WKWebView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
         window?.makeFirstResponder(nil)
         window?.makeFirstResponder(self)
         logger.info("Streaming WebView mouse focus requested")

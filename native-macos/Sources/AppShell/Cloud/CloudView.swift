@@ -67,9 +67,9 @@ public struct CloudView: View {
                     .pickerStyle(.segmented)
 
                     LazyVStack(spacing: 12) {
-                        ForEach(viewModel.displayedTitles, id: \.productID) { title in
+                        ForEach(viewModel.displayedTitles, id: \.titleID) { title in
                             Button {
-                                router.route(to: .streamCloud(id: title.productID))
+                                router.route(to: .streamCloud(id: title.cloudStreamingTargetID))
                             } label: {
                                 CloudTitleRow(title: title, strings: strings)
                             }
@@ -110,6 +110,12 @@ public struct CloudView: View {
 
     private var keyboardReadyCount: Int {
         viewModel.displayedTitles.filter { $0.supportedInputTypes.contains(.mouseAndKeyboard) }.count
+    }
+}
+
+extension CatalogTitle {
+    var cloudStreamingTargetID: String {
+        titleID
     }
 }
 

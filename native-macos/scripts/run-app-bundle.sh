@@ -10,6 +10,7 @@ CONTENTS_DIR="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 EXECUTABLE="$BUILD_DIR/$APP_NAME"
+AUTH_MODE="${XSTREAMING_AUTH_MODE:-live}"
 
 swift build --package-path "$ROOT_DIR" --product "$APP_NAME"
 
@@ -38,11 +39,22 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <key>LSEnvironment</key>
+    <dict>
+        <key>XSTREAMING_AUTH_MODE</key>
+        <string>__AUTH_MODE__</string>
+    </dict>
     <key>NSHighResolutionCapable</key>
     <true/>
 </dict>
 </plist>
 PLIST
+
+python3 - <<PY
+from pathlib import Path
+path = Path("$CONTENTS_DIR/Info.plist")
+path.write_text(path.read_text().replace("__AUTH_MODE__", "$AUTH_MODE"))
+PY
 
 cp "$EXECUTABLE" "$MACOS_DIR/$APP_NAME"
 

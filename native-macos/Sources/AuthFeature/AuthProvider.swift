@@ -139,7 +139,7 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             isSignedIn: true,
             isAuthenticating: false,
             userProfile: nil,
-            statusMessage: "Restored live session from stored tokens. Profile refresh is unavailable."
+            statusMessage: "Restored live session from stored tokens."
         )
         return AuthSignInResult(authState: state, tokens: tokens)
     }
@@ -314,9 +314,7 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             isSignedIn: true,
             isAuthenticating: false,
             userProfile: profile,
-            statusMessage: profile == nil
-                ? "Refreshed live session. Profile refresh is unavailable."
-                : "Refreshed live session from stored refresh token."
+            statusMessage: "Refreshed live session from stored refresh token."
         )
         let refreshedTokens = StoredTokens(
             authToken: tokenResponse.accessToken,

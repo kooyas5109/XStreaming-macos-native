@@ -1,6 +1,7 @@
 import PersistenceKit
 import Foundation
 import NetworkingKit
+import SharedDomain
 import Testing
 @testable import CatalogFeature
 
@@ -74,6 +75,53 @@ func liveCatalogRepositoryLoadsCloudTitleIDsFromStreamingService() async throws 
     #expect(session.requests.first?.value(forHTTPHeaderField: "Authorization") == "Bearer cloud-token")
 }
 
+@Test
+func liveCatalogRepositoryRewritesXboxCatalogHostToGlobalEndpoint() async throws {
+    let tokenStore = InMemoryTokenStore()
+    try tokenStore.save(
+        StoredTokens(
+            xCloudStreamingToken: "cloud-token",
+            xCloudBaseURI: "https://wus3.core.gssv-play-prod.xboxlive.com"
+        )
+    )
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            body: """
+            {
+              "results": [
+                {
+                  "titleId": "9N123ABC"
+                }
+              ]
+            }
+            """
+        ),
+        MockURLSession.Response(statusCode: 500, body: "{}")
+    ])
+    let repository = LiveCatalogRepository(
+        tokenStore: tokenStore,
+        httpClient: HTTPClient(session: session)
+    )
+
+    _ = try await repository.fetchTitles()
+
+    #expect(session.requests.first?.url?.absoluteString == "https://wus.core.gssv-play-prod.xboxlive.com/v2/titles")
+}
+
+@Test
+func catalogServiceFallsBackWhenOptionalCatalogRequestsFail() async throws {
+    let service = CatalogService(
+        repository: FailingRecentCatalogRepository(),
+        cacheStore: InMemoryCacheStore()
+    )
+
+    let result = try await service.loadCatalog()
+
+    #expect(result.titles.count == 2)
+    #expect(result.recentTitles.isEmpty)
+    #expect(result.newTitles.count == 2)
+}
+
 private final class MockURLSession: URLSessionProviding, @unchecked Sendable {
     struct Response {
         let statusCode: Int
@@ -102,5 +150,19 @@ private final class MockURLSession: URLSessionProviding, @unchecked Sendable {
             headerFields: nil
         )!
         return (Data(response.body.utf8), httpResponse)
+    }
+}
+
+private struct FailingRecentCatalogRepository: CatalogRepository {
+    func fetchTitles() async throws -> [CatalogTitle] {
+        CatalogFixtures.allTitles
+    }
+
+    func fetchRecentTitles() async throws -> [CatalogTitle] {
+        throw LiveCatalogRepositoryError.requestFailed(stage: "/v2/titles/mru", statusCode: 500, bodySnippet: "{}")
+    }
+
+    func fetchNewTitles() async throws -> [CatalogTitle] {
+        throw LiveCatalogRepositoryError.requestFailed(stage: "/v2/titles", statusCode: 500, bodySnippet: "{}")
     }
 }

@@ -233,7 +233,7 @@ func liveProviderRestoresSessionWhenStoredProfileCannotDecode() async throws {
 
     #expect(state.isSignedIn == true)
     #expect(state.userProfile == nil)
-    #expect(state.statusMessage == "Restored live session from stored tokens. Profile refresh is unavailable.")
+    #expect(state.statusMessage == "Restored live session from stored tokens.")
     #expect(await session.consumedResponses == 1)
 }
 

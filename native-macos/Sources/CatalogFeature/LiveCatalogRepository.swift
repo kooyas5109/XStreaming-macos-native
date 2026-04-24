@@ -9,6 +9,19 @@ public enum LiveCatalogRepositoryError: Error, Equatable {
     case requestFailed(stage: String, statusCode: Int, bodySnippet: String)
 }
 
+extension LiveCatalogRepositoryError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .missingCloudToken:
+            return "Cloud catalog is unavailable because the cloud streaming token is missing."
+        case let .invalidCloudBaseURI(baseURI):
+            return "Cloud catalog is unavailable because the cloud base URL is invalid: \(baseURI)"
+        case let .requestFailed(stage, statusCode, bodySnippet):
+            return "Cloud catalog request failed at \(stage) with HTTP \(statusCode). \(bodySnippet)"
+        }
+    }
+}
+
 public final class LiveCatalogRepository: CatalogRepository, @unchecked Sendable {
     private let tokenStore: TokenStoreProtocol
     private let httpClient: HTTPClient
@@ -116,7 +129,7 @@ public final class LiveCatalogRepository: CatalogRepository, @unchecked Sendable
             throw LiveCatalogRepositoryError.invalidCloudBaseURI(baseURI)
         }
 
-        return (token, baseURL)
+        return (token, Self.catalogRequestBaseURL(from: baseURL))
     }
 
     private func validate(_ response: HTTPResponse, stage: String) throws {
@@ -131,6 +144,21 @@ public final class LiveCatalogRepository: CatalogRepository, @unchecked Sendable
 
     private static func snippet(_ data: Data, limit: Int = 500) -> String {
         String(decoding: data.prefix(limit), as: UTF8.self)
+    }
+
+    private static func catalogRequestBaseURL(from baseURL: URL) -> URL {
+        guard
+            let host = baseURL.host,
+            host.hasSuffix(".gssv-play-prod.xboxlive.com"),
+            let suffixRange = host.range(of: ".xboxlive.com")
+        else {
+            return baseURL
+        }
+
+        let rewrittenHost = "wus.core.gssv-play-prod" + host[suffixRange.lowerBound...]
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        components?.host = String(rewrittenHost)
+        return components?.url ?? baseURL
     }
 }
 

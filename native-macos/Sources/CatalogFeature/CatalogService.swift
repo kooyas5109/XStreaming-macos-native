@@ -25,13 +25,12 @@ public final class CatalogService: @unchecked Sendable {
         let cachedEnvelope = try cacheStore.load([CatalogTitle].self, forKey: cacheKey)
         let cachedTitles = cachedEnvelope?.value ?? []
 
-        async let titlesTask = repository.fetchTitles()
-        async let recentTask = repository.fetchRecentTitles()
-        async let newTask = repository.fetchNewTitles()
+        let titles = try await repository.fetchTitles()
+        async let recentTask = try? repository.fetchRecentTitles()
+        async let newTask = try? repository.fetchNewTitles()
 
-        let titles = try await titlesTask
-        let recentTitles = try await recentTask
-        let newTitles = try await newTask
+        let recentTitles = await recentTask ?? []
+        let newTitles = await newTask ?? Array(titles.prefix(25))
 
         try cacheStore.save(CacheEnvelope(value: titles), forKey: cacheKey)
 

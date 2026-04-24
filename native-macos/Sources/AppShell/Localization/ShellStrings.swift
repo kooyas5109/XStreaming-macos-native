@@ -256,6 +256,7 @@ public struct ShellStrings {
         : "启动真实播放，并在同一处观察会话状态、信令和播放器协商。"
     }
     public var startPreviewStream: String { language == .english ? "Start Stream" : "开始串流" }
+    public var streamAction: String { language == .english ? "Stream" : "串流" }
     public var starting: String { language == .english ? "Starting..." : "启动中..." }
     public var stopStream: String { language == .english ? "Stop Stream" : "停止串流" }
     public var nativeSurface: String { language == .english ? "Native surface" : "原生画面" }
@@ -299,6 +300,8 @@ public struct ShellStrings {
     public var displaySettingsAction: String { language == .english ? "Display Settings" : "画面设置" }
     public var audioSettingsAction: String { language == .english ? "Audio Settings" : "音频设置" }
     public var togglePerformanceAction: String { language == .english ? "Toggle Performance" : "切换性能信息" }
+    public var showPerformanceAction: String { language == .english ? "Show Performance" : "显示性能" }
+    public var hidePerformanceAction: String { language == .english ? "Hide Performance" : "隐藏性能" }
     public var openMicAction: String { language == .english ? "Open Mic" : "打开麦克风" }
     public var closeMicAction: String { language == .english ? "Close Mic" : "关闭麦克风" }
     public var disconnectAction: String { language == .english ? "Disconnect" : "断开连接" }

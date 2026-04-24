@@ -151,8 +151,14 @@ private struct CloudTitleRow: View {
 
             Spacer()
 
-            Image(systemName: "arrow.right.circle.fill")
-                .font(.title3)
+            Text(strings.streamAction)
+                .font(.callout.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule(style: .circular)
+                        .fill(Color.accentColor.opacity(0.12))
+                )
                 .foregroundStyle(.tint)
         }
         .padding(16)

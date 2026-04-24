@@ -31,6 +31,8 @@ public struct StreamContainerView: View {
     @State private var outgoingText = ""
     @State private var infoMessage: String?
     @State private var errorMessage: String?
+    @State private var overlayHovered = false
+    @State private var didAutoStart = false
 
     public init(
         route: AppRouter.Route,
@@ -55,152 +57,39 @@ public struct StreamContainerView: View {
     public var body: some View {
         let strings = ShellStrings(language: language)
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                HStack(alignment: .top) {
-                    ShellSectionHeader(
-                        eyebrow: strings.streamEyebrow(for: route),
-                        title: title,
-                        subtitle: strings.streamSubtitle
-                    )
+        ZStack(alignment: .topTrailing) {
+            streamingSurface
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.black)
 
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 10) {
-                        Button {
-                            router.route(to: backRoute)
-                        } label: {
-                            Label(strings.back, systemImage: "chevron.left")
-                        }
-
-                        ShellStatusBadge(label: stateLabel, tint: stateTint)
-                    }
-                }
-
-                HStack(spacing: 14) {
-                    ShellMetricCard(
-                        title: strings.engine,
-                        value: engine.capabilities.supportsRumble ? strings.nativeLabel : strings.compatibilityLabel,
-                        icon: "sparkles.tv",
-                        tint: .cyan
-                    )
-                    ShellMetricCard(
-                        title: strings.video,
-                        value: engine.capabilities.supportsVideo ? strings.enabled : strings.unavailable,
-                        icon: "video.fill",
-                        tint: .blue
-                    )
-                    ShellMetricCard(
-                        title: strings.rumble,
-                        value: engine.capabilities.supportsRumble ? strings.ready : strings.pending,
-                        icon: "waveform.path.ecg.rectangle",
-                        tint: .green
-                    )
-                }
-
-                ShellPanel(
-                    title: strings.streamSurfaceTitle,
-                    subtitle: strings.streamSurfaceSubtitle
-                ) {
-                    HStack(spacing: 12) {
-                        Button(startButtonTitle) {
-                            Task {
-                                await startStream()
-                            }
-                        }
-                        .disabled(isStarting || isStopping)
-
-                        Button(strings.stopStream) {
-                            Task {
-                                await stopStream()
-                            }
-                        }
-                        .disabled(state.session == nil || isStarting || isStopping)
-
-                        Button(strings.fullscreenAction) {
-                            WindowControls.toggleFullscreen()
-                        }
-                        .disabled(isStarting)
-
-                        Spacer()
-
-                        ShellStatusBadge(label: capabilitiesLabel, tint: .secondary)
-                    }
-
-                    quickControls(strings: strings)
-
-                    streamingSurface
-                        .frame(maxWidth: .infinity, minHeight: 420, maxHeight: 520)
-                        .background(.black.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-
-                    HStack(spacing: 12) {
-                        ShellStatusBadge(label: sessionLabel, tint: .secondary)
-                        ShellStatusBadge(label: stateLabel, tint: stateTint)
-                        ShellStatusBadge(
-                            label: settings.performanceStyle ? strings.horizonStyle : strings.verticalStyle,
-                            tint: .secondary
-                        )
-                        Spacer()
-                        Text(helpText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+            VStack(alignment: .trailing, spacing: 10) {
+                streamOverlayControls(strings: strings)
+                    .opacity(overlayHovered || showPerformancePanel == false ? 1 : 0)
 
                 if showPerformancePanel {
-                    ShellPanel(
-                        title: strings.performancePanelTitle,
-                        subtitle: strings.performancePanelSubtitle
-                    ) {
-                        if settings.performanceStyle {
-                            performanceStrip(strings: strings)
-                        } else {
-                            performanceGrid(strings: strings)
-                        }
-
-                        if settings.fullscreen {
-                            Text(strings.fullscreenEnabledHint)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                if showDisplayPanel {
-                    ShellPanel(
-                        title: strings.displayPanelTitle,
-                        subtitle: strings.displayPanelSubtitle
-                    ) {
-                        displayControls(strings: strings)
-                    }
-                }
-
-                if showAudioPanel {
-                    ShellPanel(
-                        title: strings.audioPanelTitle,
-                        subtitle: strings.audioPanelSubtitle
-                    ) {
-                        audioControls(strings: strings)
-                    }
-                }
-
-                if let infoMessage {
-                    Text(infoMessage)
-                        .foregroundStyle(.green)
-                }
-
-                if let errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
+                    performanceOverlay(strings: strings)
+                        .opacity(overlayHovered ? 1 : 0.86)
                 }
             }
-            .padding(28)
+            .padding(18)
+            .frame(maxWidth: 620, alignment: .trailing)
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                overlayHovered = hovering
+            }
+
+            streamMessageOverlay
         }
+        .background(.black)
         .task {
             loadSettings()
             refreshPerformance(for: state)
             registerCommands()
+            guard didAutoStart == false else {
+                return
+            }
+            didAutoStart = true
+            await startStream()
         }
         .onChange(of: state) { _, newState in
             refreshPerformance(for: newState)
@@ -213,6 +102,97 @@ public struct StreamContainerView: View {
         }
         .sheet(isPresented: $showTextComposer) {
             sendTextSheet(strings: strings)
+        }
+    }
+
+    @ViewBuilder
+    private func streamOverlayControls(strings: ShellStrings) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                router.route(to: backRoute)
+            } label: {
+                Label(strings.back, systemImage: "chevron.left")
+            }
+
+            Button(showPerformancePanel ? strings.hidePerformanceAction : strings.showPerformanceAction) {
+                showPerformancePanel.toggle()
+            }
+
+            Button(strings.fullscreenAction) {
+                WindowControls.toggleFullscreen()
+            }
+            .disabled(isStarting)
+
+            if state.session != nil {
+                Button(strings.stopStream) {
+                    Task {
+                        await stopStream()
+                    }
+                }
+                .disabled(isStopping)
+            } else if canStart {
+                Button(startButtonTitle) {
+                    Task {
+                        await startStream()
+                    }
+                }
+                .disabled(isStarting)
+            }
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .padding(8)
+        .background(.regularMaterial, in: Capsule(style: .circular))
+    }
+
+    @ViewBuilder
+    private func performanceOverlay(strings: ShellStrings) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                ShellStatusBadge(label: stateLabel, tint: stateTint)
+                ShellStatusBadge(label: sessionLabel, tint: .secondary)
+            }
+
+            if settings.performanceStyle {
+                performanceStrip(strings: strings)
+            } else {
+                performanceGrid(strings: strings)
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.red)
+            } else if let infoMessage {
+                Text(infoMessage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.green)
+            } else {
+                Text(helpText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var streamMessageOverlay: some View {
+        if isStarting || state.session == nil {
+            VStack(spacing: 10) {
+                if isStarting {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
+                Text(isStarting ? startButtonTitle : helpText)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.88))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.black.opacity(0.58), in: Capsule(style: .circular))
         }
     }
 
@@ -272,6 +252,15 @@ public struct StreamContainerView: View {
 
     private var helpText: String {
         ShellStrings(language: language).streamHelpText(for: state)
+    }
+
+    private var canStart: Bool {
+        switch state {
+        case .idle, .stopped, .failed:
+            return true
+        case .pending, .queued, .readyToConnect, .connecting, .streaming:
+            return false
+        }
     }
 
     @ViewBuilder

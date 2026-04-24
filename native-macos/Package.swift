@@ -84,7 +84,7 @@ let package = Package(
         ),
         .target(
             name: "CatalogFeature",
-            dependencies: ["SharedDomain", "PersistenceKit"],
+            dependencies: ["SharedDomain", "PersistenceKit", "NetworkingKit"],
             path: "Sources/CatalogFeature"
         ),
         .target(
@@ -142,7 +142,7 @@ let package = Package(
         ),
         .testTarget(
             name: "CatalogFeatureTests",
-            dependencies: ["CatalogFeature", "SharedDomain", "PersistenceKit"],
+            dependencies: ["CatalogFeature", "SharedDomain", "PersistenceKit", "NetworkingKit"],
             path: "Tests/CatalogFeatureTests"
         ),
         .testTarget(

@@ -54,6 +54,13 @@ public final class CatalogService: @unchecked Sendable {
             cacheStore: InMemoryCacheStore()
         )
     }
+
+    public static func live(tokenStore: TokenStoreProtocol) -> CatalogService {
+        CatalogService(
+            repository: LiveCatalogRepository(tokenStore: tokenStore),
+            cacheStore: InMemoryCacheStore()
+        )
+    }
 }
 
 enum CatalogFixtures {

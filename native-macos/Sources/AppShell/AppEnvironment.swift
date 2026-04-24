@@ -87,7 +87,7 @@ public struct AppEnvironment: Sendable {
                 tokenStore: tokenStore
             ),
             consoleService: mode == .live ? .live(tokenStore: tokenStore) : .preview(),
-            catalogService: .preview(),
+            catalogService: mode == .live ? .live(tokenStore: tokenStore) : .preview(),
             settingsStore: settingsStore,
             streamingService: StreamingService(
                 repository: repository,

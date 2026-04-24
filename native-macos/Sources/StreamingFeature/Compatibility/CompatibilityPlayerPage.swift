@@ -588,6 +588,7 @@ public struct CompatibilityPlayerPage: Sendable {
             } else {
               return;
             }
+            emitDiagnostic("native keyboard state changed key=" + key + " pressed=" + (pressed ? "1" : "0"));
             window.xstreamingNativePlayer?.setGamepadState?.(nativeKeyboardGamepadState());
           }
 
@@ -913,19 +914,25 @@ public struct CompatibilityPlayerPage: Sendable {
                   Dirty: true,
                   Virtual: true
                 }, state);
+                const usedDirectGamepadInput = !!input.sendGamepadInput;
                 const usedSetGamepadState = !!input.setGamepadState;
                 const usedQueueGamepadState = !!input.queueGamepadState;
+                if (usedDirectGamepadInput) {
+                  input.sendGamepadInput(performance.now(), [gamepadState]);
+                }
                 if (usedSetGamepadState) {
                   input.setGamepadState(gamepadState);
                 }
                 if (usedQueueGamepadState) {
                   input.queueGamepadState(gamepadState);
                 }
-                if (usedSetGamepadState || usedQueueGamepadState) {
-                  emitDiagnostic("native gamepad state sent set=" + (usedSetGamepadState ? "1" : "0") + " queue=" + (usedQueueGamepadState ? "1" : "0"));
+                if (usedDirectGamepadInput || usedSetGamepadState || usedQueueGamepadState) {
+                  emitDiagnostic("native gamepad state sent direct=" + (usedDirectGamepadInput ? "1" : "0") + " set=" + (usedSetGamepadState ? "1" : "0") + " queue=" + (usedQueueGamepadState ? "1" : "0"));
                 } else {
                   emitDiagnostic("native gamepad state ignored no input method");
                 }
+              } else {
+                emitDiagnostic("native gamepad state ignored input unavailable");
               }
             },
             setMicrophone(active) {

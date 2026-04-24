@@ -768,45 +768,26 @@ public struct StreamContainerView: View {
 private struct WebViewStreamingSurface: View {
     @ObservedObject var engine: WebViewStreamingEngine
     @StateObject private var keyboardInput = KeyboardGamepadInputController()
-    @State private var keyMonitor: Any?
 
     var body: some View {
-        StreamingWebView(engine: engine)
-        .onAppear {
-            installKeyboardMonitor()
-        }
+        StreamingWebView(engine: engine, onKeyEvent: handleKeyEvent)
         .onDisappear {
-            removeKeyboardMonitor()
             releaseKeyboardState()
         }
     }
 
-    private func installKeyboardMonitor() {
-        guard keyMonitor == nil else {
-            return
+    private func handleKeyEvent(_ event: NSEvent) -> Bool {
+        let result = keyboardInput.handle(event)
+        guard result.handled else {
+            return false
         }
 
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
-            let result = keyboardInput.handle(event)
-            guard result.handled else {
-                return event
+        if let state = result.state {
+            Task { @MainActor in
+                await engine.sendGamepadState(state)
             }
-
-            if let state = result.state {
-                Task { @MainActor in
-                    await engine.sendGamepadState(state)
-                }
-            }
-            return nil
         }
-    }
-
-    private func removeKeyboardMonitor() {
-        guard let keyMonitor else {
-            return
-        }
-        NSEvent.removeMonitor(keyMonitor)
-        self.keyMonitor = nil
+        return true
     }
 
     private func releaseKeyboardState() {

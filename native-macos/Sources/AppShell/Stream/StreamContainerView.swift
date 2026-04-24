@@ -16,6 +16,7 @@ public struct StreamContainerView: View {
     private let router: AppRouter
     private let commandCenter: StreamCommandCenter
     private let settingsStore: SettingsStoreProtocol
+    private let mouseKeyboardProfileStore: MouseKeyboardProfileStoreProtocol
     private let language: AppLanguage
     @State private var settings: AppSettings = .defaults
     @State private var performance = StreamPerformanceSnapshot.idle
@@ -34,6 +35,7 @@ public struct StreamContainerView: View {
     @State private var errorMessage: String?
     @State private var overlayHovered = false
     @State private var didAutoStart = false
+    @State private var mouseKeyboardProfiles = MouseKeyboardProfiles.defaults
 
     public init(
         route: AppRouter.Route,
@@ -43,6 +45,7 @@ public struct StreamContainerView: View {
         router: AppRouter,
         commandCenter: StreamCommandCenter,
         settingsStore: SettingsStoreProtocol,
+        mouseKeyboardProfileStore: MouseKeyboardProfileStoreProtocol = InMemoryMouseKeyboardProfileStore(),
         language: AppLanguage
     ) {
         self.route = route
@@ -52,6 +55,7 @@ public struct StreamContainerView: View {
         self.router = router
         self.commandCenter = commandCenter
         self.settingsStore = settingsStore
+        self.mouseKeyboardProfileStore = mouseKeyboardProfileStore
         self.language = language
     }
 
@@ -538,7 +542,7 @@ public struct StreamContainerView: View {
         if let nativeEngine = engine as? NativeStreamingEngine {
             NativeVideoSurfaceView(renderer: nativeEngine.videoRenderer)
         } else if let webViewEngine = engine as? WebViewStreamingEngine {
-            WebViewStreamingSurface(engine: webViewEngine)
+            WebViewStreamingSurface(engine: webViewEngine, profiles: mouseKeyboardProfiles)
         } else {
             let strings = ShellStrings(language: language)
             ContentUnavailableView(
@@ -605,6 +609,7 @@ public struct StreamContainerView: View {
 
     private func loadSettings() {
         settings = (try? settingsStore.load()) ?? .defaults
+        mouseKeyboardProfiles = (try? mouseKeyboardProfileStore.load()) ?? .defaults
         displayOptions = settings.displayOptions
         updateCommandContext()
     }
@@ -768,14 +773,26 @@ public struct StreamContainerView: View {
 
 private struct WebViewStreamingSurface: View {
     @ObservedObject var engine: WebViewStreamingEngine
+    let profiles: MouseKeyboardProfiles
     @StateObject private var keyboardInput = KeyboardGamepadInputController()
     @State private var keyMonitor: Any?
     private let logger = AppLogger(category: "WebRTC")
 
     var body: some View {
-        StreamingWebView(engine: engine, onKeyEvent: handleKeyEvent)
+        StreamingWebView(
+            engine: engine,
+            onKeyEvent: handleKeyEvent,
+            onMouseButtonEvent: handleMouseButtonEvent,
+            onMouseMoveEvent: handleMouseMoveEvent,
+            onMouseWheelEvent: handleMouseWheelEvent
+        )
         .onAppear {
+            keyboardInput.configure(profiles: profiles)
+            keyboardInput.setStateSink(sendGamepadState)
             installKeyboardMonitor()
+        }
+        .onChange(of: profiles) { _, profiles in
+            keyboardInput.configure(profiles: profiles)
         }
         .onDisappear {
             removeKeyboardMonitor()
@@ -789,12 +806,26 @@ private struct WebViewStreamingSurface: View {
             return false
         }
 
-        if let state = result.state {
-            Task { @MainActor in
-                await engine.sendGamepadState(state)
-            }
-        }
+        sendGamepadStateIfNeeded(result.state)
         return true
+    }
+
+    private func handleMouseButtonEvent(_ event: NSEvent, pressed: Bool) -> Bool {
+        let result = keyboardInput.handleMouseButton(event, pressed: pressed)
+        sendGamepadStateIfNeeded(result.state)
+        return result.handled
+    }
+
+    private func handleMouseMoveEvent(_ event: NSEvent) -> Bool {
+        let result = keyboardInput.handleMouseMove(event)
+        sendGamepadStateIfNeeded(result.state)
+        return result.handled
+    }
+
+    private func handleMouseWheelEvent(_ event: NSEvent) -> Bool {
+        let result = keyboardInput.handleMouseWheel(event)
+        sendGamepadStateIfNeeded(result.state)
+        return result.handled
     }
 
     private func installKeyboardMonitor() {
@@ -809,9 +840,7 @@ private struct WebViewStreamingSurface: View {
             }
 
             if let state = result.state {
-                Task { @MainActor in
-                    await engine.sendGamepadState(state)
-                }
+                sendGamepadState(state)
             }
             return nil
         }
@@ -831,6 +860,17 @@ private struct WebViewStreamingSurface: View {
         guard let state = keyboardInput.reset() else {
             return
         }
+        sendGamepadState(state)
+    }
+
+    private func sendGamepadStateIfNeeded(_ state: StreamingGamepadState?) {
+        guard let state else {
+            return
+        }
+        sendGamepadState(state)
+    }
+
+    private func sendGamepadState(_ state: StreamingGamepadState) {
         Task { @MainActor in
             await engine.sendGamepadState(state)
         }

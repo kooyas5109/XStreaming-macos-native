@@ -16,6 +16,7 @@ public struct AppEnvironment: Sendable {
     public let consoleService: ConsoleService
     public let catalogService: CatalogService
     public let settingsStore: SettingsStoreProtocol
+    public let mouseKeyboardProfileStore: MouseKeyboardProfileStoreProtocol
     public let streamingService: StreamingService
     public let streamingEngine: any StreamingEngineProtocol
 
@@ -28,6 +29,7 @@ public struct AppEnvironment: Sendable {
         consoleService: ConsoleService,
         catalogService: CatalogService,
         settingsStore: SettingsStoreProtocol,
+        mouseKeyboardProfileStore: MouseKeyboardProfileStoreProtocol,
         streamingService: StreamingService,
         streamingEngine: any StreamingEngineProtocol
     ) {
@@ -39,6 +41,7 @@ public struct AppEnvironment: Sendable {
         self.consoleService = consoleService
         self.catalogService = catalogService
         self.settingsStore = settingsStore
+        self.mouseKeyboardProfileStore = mouseKeyboardProfileStore
         self.streamingService = streamingService
         self.streamingEngine = streamingEngine
     }
@@ -61,6 +64,7 @@ public struct AppEnvironment: Sendable {
         let authRepository: DefaultAuthRepository
         let tokenStore: TokenStoreProtocol
         let settingsStore: SettingsStoreProtocol
+        let mouseKeyboardProfileStore: MouseKeyboardProfileStoreProtocol
 
         switch mode {
         case .preview:
@@ -69,12 +73,14 @@ public struct AppEnvironment: Sendable {
             tokenStore = InMemoryTokenStore()
             repository = PreviewStreamingRepository()
             settingsStore = InMemorySettingsStore()
+            mouseKeyboardProfileStore = InMemoryMouseKeyboardProfileStore()
         case .live:
             streamingEngine = try! WebViewStreamingEngine(configuration: .preview)
             authRepository = DefaultAuthRepository(provider: LiveXboxAuthProvider())
             tokenStore = KeychainTokenStore()
             repository = LiveStreamingRepository(tokenStore: tokenStore)
             settingsStore = UserDefaultsSettingsStore()
+            mouseKeyboardProfileStore = UserDefaultsMouseKeyboardProfileStore()
         }
 
         return AppEnvironment(
@@ -89,6 +95,7 @@ public struct AppEnvironment: Sendable {
             consoleService: mode == .live ? .live(tokenStore: tokenStore) : .preview(),
             catalogService: mode == .live ? .live(tokenStore: tokenStore) : .preview(),
             settingsStore: settingsStore,
+            mouseKeyboardProfileStore: mouseKeyboardProfileStore,
             streamingService: StreamingService(
                 repository: repository,
                 engine: streamingEngine,

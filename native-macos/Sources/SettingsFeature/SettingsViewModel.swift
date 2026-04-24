@@ -17,17 +17,29 @@ public final class SettingsViewModel: ObservableObject {
     @Published public var vibrationEnabled: Bool = true
     @Published public var nativeMouseKeyboardEnabled: Bool = false
     @Published public var mouseSensitivity: Double = 0.5
+    @Published public var mouseKeyboardEnabled: Bool = true
+    @Published public var selectedMouseKeyboardProfileID: String = MouseKeyboardProfiles.standardProfile.id
+    @Published public var mouseKeyboardMouseTarget: MouseKeyboardMouseTarget = .rightStick
+    @Published public var mouseKeyboardSensitivityX: Double = 100
+    @Published public var mouseKeyboardSensitivityY: Double = 100
+    @Published public var mouseKeyboardDeadzoneCounterweight: Double = 20
     @Published public var serverURL: String = ""
     @Published public var serverUsername: String = ""
     @Published public var serverCredential: String = ""
     @Published public private(set) var settings: AppSettings = .defaults
     @Published public private(set) var toastMessage: String?
     @Published public private(set) var errorMessage: String?
+    @Published public private(set) var mouseKeyboardProfiles: MouseKeyboardProfiles = .defaults
 
     private let settingsStore: SettingsStoreProtocol
+    private let mouseKeyboardProfileStore: MouseKeyboardProfileStoreProtocol
 
-    public init(settingsStore: SettingsStoreProtocol) {
+    public init(
+        settingsStore: SettingsStoreProtocol,
+        mouseKeyboardProfileStore: MouseKeyboardProfileStoreProtocol = UserDefaultsMouseKeyboardProfileStore()
+    ) {
         self.settingsStore = settingsStore
+        self.mouseKeyboardProfileStore = mouseKeyboardProfileStore
     }
 
     public func load() throws {
@@ -49,6 +61,9 @@ public final class SettingsViewModel: ObservableObject {
         serverURL = loaded.turnServer.url
         serverUsername = loaded.turnServer.username
         serverCredential = loaded.turnServer.credential
+        let profiles = try mouseKeyboardProfileStore.load()
+        mouseKeyboardProfiles = profiles
+        applyMouseKeyboardProfiles(profiles)
     }
 
     public func save() throws {
@@ -84,6 +99,8 @@ public final class SettingsViewModel: ObservableObject {
         )
 
         try settingsStore.save(updated)
+        try mouseKeyboardProfileStore.save(updatedMouseKeyboardProfiles())
+        mouseKeyboardProfiles = try mouseKeyboardProfileStore.load()
         settings = updated
         toastMessage = selectedLanguage == .english ? "Saved" : "已保存"
         errorMessage = nil
@@ -108,14 +125,60 @@ public final class SettingsViewModel: ObservableObject {
         serverURL = resetSettings.turnServer.url
         serverUsername = resetSettings.turnServer.username
         serverCredential = resetSettings.turnServer.credential
+        let resetProfiles = try mouseKeyboardProfileStore.reset()
+        mouseKeyboardProfiles = resetProfiles
+        applyMouseKeyboardProfiles(resetProfiles)
         toastMessage = selectedLanguage == .english ? "Reset" : "已重置"
         errorMessage = nil
     }
 
+    public func selectMouseKeyboardProfile(_ profileID: String) {
+        selectedMouseKeyboardProfileID = profileID
+        let profiles = MouseKeyboardProfiles(
+            enabled: mouseKeyboardEnabled,
+            selectedProfileID: profileID,
+            profiles: mouseKeyboardProfiles.profiles
+        )
+        applyMouseKeyboardProfiles(profiles)
+    }
+
     public static func preview() async throws -> SettingsViewModel {
         let store = InMemorySettingsStore()
-        let viewModel = SettingsViewModel(settingsStore: store)
+        let viewModel = SettingsViewModel(
+            settingsStore: store,
+            mouseKeyboardProfileStore: InMemoryMouseKeyboardProfileStore()
+        )
         try viewModel.load()
         return viewModel
+    }
+
+    private func applyMouseKeyboardProfiles(_ profiles: MouseKeyboardProfiles) {
+        mouseKeyboardEnabled = profiles.enabled
+        selectedMouseKeyboardProfileID = profiles.selectedProfileID
+        let mouse = profiles.selectedProfile.mouse
+        mouseKeyboardMouseTarget = mouse.mapTo
+        mouseKeyboardSensitivityX = mouse.sensitivityX
+        mouseKeyboardSensitivityY = mouse.sensitivityY
+        mouseKeyboardDeadzoneCounterweight = mouse.deadzoneCounterweight
+    }
+
+    private func updatedMouseKeyboardProfiles() -> MouseKeyboardProfiles {
+        var profiles = mouseKeyboardProfiles
+        profiles.enabled = mouseKeyboardEnabled
+        profiles.selectedProfileID = selectedMouseKeyboardProfileID
+        profiles.profiles = profiles.profiles.map { profile in
+            guard profile.id == selectedMouseKeyboardProfileID else {
+                return profile
+            }
+            var updated = profile
+            updated.mouse = MouseKeyboardMouseSettings(
+                mapTo: mouseKeyboardMouseTarget,
+                sensitivityX: mouseKeyboardSensitivityX,
+                sensitivityY: mouseKeyboardSensitivityY,
+                deadzoneCounterweight: mouseKeyboardDeadzoneCounterweight
+            )
+            return updated
+        }
+        return profiles
     }
 }

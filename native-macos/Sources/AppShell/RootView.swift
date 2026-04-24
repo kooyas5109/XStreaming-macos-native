@@ -170,6 +170,7 @@ public struct RootView: View {
         case .settings:
             SettingsContainerView(
                 settingsStore: environment.settingsStore,
+                mouseKeyboardProfileStore: environment.mouseKeyboardProfileStore,
                 language: localization.language,
                 onSettingsChanged: { settings in
                     localization.apply(settings: settings)
@@ -185,6 +186,7 @@ public struct RootView: View {
                 router: router,
                 commandCenter: environment.streamCommandCenter,
                 settingsStore: environment.settingsStore,
+                mouseKeyboardProfileStore: environment.mouseKeyboardProfileStore,
                 language: localization.language
             )
 
@@ -197,6 +199,7 @@ public struct RootView: View {
                 router: router,
                 commandCenter: environment.streamCommandCenter,
                 settingsStore: environment.settingsStore,
+                mouseKeyboardProfileStore: environment.mouseKeyboardProfileStore,
                 language: localization.language
             )
         }

@@ -123,6 +123,47 @@ public struct SettingsView: View {
                         Toggle(strings.nativeMouseKeyboardTitle, isOn: $viewModel.nativeMouseKeyboardEnabled)
                             .toggleStyle(.switch)
 
+                        Toggle(strings.emulatedMouseKeyboardTitle, isOn: $viewModel.mouseKeyboardEnabled)
+                            .toggleStyle(.switch)
+
+                        Picker(strings.mouseKeyboardProfileTitle, selection: $viewModel.selectedMouseKeyboardProfileID) {
+                            ForEach(viewModel.mouseKeyboardProfiles.profiles) { profile in
+                                Text(profile.name).tag(profile.id)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Picker(strings.mouseMapTargetTitle, selection: $viewModel.mouseKeyboardMouseTarget) {
+                            Text(strings.mouseMapOff).tag(MouseKeyboardMouseTarget.off)
+                            Text(strings.mouseMapLeftStick).tag(MouseKeyboardMouseTarget.leftStick)
+                            Text(strings.mouseMapRightStick).tag(MouseKeyboardMouseTarget.rightStick)
+                        }
+                        .pickerStyle(.segmented)
+
+                        SettingsSliderRow(
+                            title: strings.mouseSensitivityXTitle,
+                            value: $viewModel.mouseKeyboardSensitivityX,
+                            range: 1...300,
+                            step: 1,
+                            suffix: "%"
+                        )
+
+                        SettingsSliderRow(
+                            title: strings.mouseSensitivityYTitle,
+                            value: $viewModel.mouseKeyboardSensitivityY,
+                            range: 1...300,
+                            step: 1,
+                            suffix: "%"
+                        )
+
+                        SettingsSliderRow(
+                            title: strings.mouseDeadzoneCounterweightTitle,
+                            value: $viewModel.mouseKeyboardDeadzoneCounterweight,
+                            range: 0...100,
+                            step: 1,
+                            suffix: "%"
+                        )
+
                         Toggle(strings.vibrationTitle, isOn: $viewModel.vibrationEnabled)
                             .toggleStyle(.switch)
 
@@ -193,6 +234,9 @@ public struct SettingsView: View {
         }
         .task {
             try? viewModel.load()
+        }
+        .onChange(of: viewModel.selectedMouseKeyboardProfileID) { _, profileID in
+            viewModel.selectMouseKeyboardProfile(profileID)
         }
     }
 }
@@ -304,6 +348,42 @@ private struct SettingsStrings {
 
     var nativeMouseKeyboardTitle: String {
         language == .english ? "Enable native mouse & keyboard" : "启用原生键鼠"
+    }
+
+    var emulatedMouseKeyboardTitle: String {
+        language == .english ? "Emulate controller with mouse & keyboard" : "用鼠标和键盘模拟手柄"
+    }
+
+    var mouseKeyboardProfileTitle: String {
+        language == .english ? "Mouse & keyboard profile" : "键鼠配置文件"
+    }
+
+    var mouseMapTargetTitle: String {
+        language == .english ? "Map mouse movement to" : "鼠标移动映射到"
+    }
+
+    var mouseMapOff: String {
+        language == .english ? "Off" : "关闭"
+    }
+
+    var mouseMapLeftStick: String {
+        language == .english ? "Left Stick" : "左摇杆"
+    }
+
+    var mouseMapRightStick: String {
+        language == .english ? "Right Stick" : "右摇杆"
+    }
+
+    var mouseSensitivityXTitle: String {
+        language == .english ? "Mouse sensitivity X" : "鼠标横向灵敏度"
+    }
+
+    var mouseSensitivityYTitle: String {
+        language == .english ? "Mouse sensitivity Y" : "鼠标纵向灵敏度"
+    }
+
+    var mouseDeadzoneCounterweightTitle: String {
+        language == .english ? "Mouse deadzone counterweight" : "鼠标死区补偿"
     }
 
     var vibrationTitle: String {

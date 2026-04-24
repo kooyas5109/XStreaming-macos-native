@@ -10,10 +10,16 @@ public struct SettingsContainerView: View {
 
     public init(
         settingsStore: SettingsStoreProtocol,
+        mouseKeyboardProfileStore: MouseKeyboardProfileStoreProtocol,
         language: AppLanguage,
         onSettingsChanged: ((AppSettings) -> Void)? = nil
     ) {
-        _viewModel = StateObject(wrappedValue: SettingsViewModel(settingsStore: settingsStore))
+        _viewModel = StateObject(
+            wrappedValue: SettingsViewModel(
+                settingsStore: settingsStore,
+                mouseKeyboardProfileStore: mouseKeyboardProfileStore
+            )
+        )
         self.language = language
         self.onSettingsChanged = onSettingsChanged
     }

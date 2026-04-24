@@ -1,4 +1,5 @@
 import SwiftUI
+import SupportKit
 import WebKit
 
 public struct StreamingWebView: NSViewRepresentable {
@@ -40,6 +41,7 @@ public struct StreamingWebView: NSViewRepresentable {
 
 private final class KeyboardCapturingWebView: WKWebView {
     var onKeyEvent: ((NSEvent) -> Bool)?
+    private let logger = AppLogger(category: "WebRTC")
 
     override var acceptsFirstResponder: Bool {
         true
@@ -52,15 +54,18 @@ private final class KeyboardCapturingWebView: WKWebView {
                 return
             }
             self.window?.makeFirstResponder(self)
+            self.logger.info("Streaming WebView requested first responder")
         }
     }
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        logger.info("Streaming WebView mouse focus requested")
         super.mouseDown(with: event)
     }
 
     override func keyDown(with event: NSEvent) {
+        logger.info("Streaming WebView keyDown received: keyCode=\(event.keyCode)")
         if onKeyEvent?(event) == true {
             return
         }
@@ -68,6 +73,7 @@ private final class KeyboardCapturingWebView: WKWebView {
     }
 
     override func keyUp(with event: NSEvent) {
+        logger.info("Streaming WebView keyUp received: keyCode=\(event.keyCode)")
         if onKeyEvent?(event) == true {
             return
         }

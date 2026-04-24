@@ -4,6 +4,7 @@ import PersistenceKit
 import SharedDomain
 import SettingsFeature
 import StreamingFeature
+import SupportKit
 import SwiftUI
 
 public struct StreamContainerView: View {
@@ -768,10 +769,16 @@ public struct StreamContainerView: View {
 private struct WebViewStreamingSurface: View {
     @ObservedObject var engine: WebViewStreamingEngine
     @StateObject private var keyboardInput = KeyboardGamepadInputController()
+    @State private var keyMonitor: Any?
+    private let logger = AppLogger(category: "WebRTC")
 
     var body: some View {
         StreamingWebView(engine: engine, onKeyEvent: handleKeyEvent)
+        .onAppear {
+            installKeyboardMonitor()
+        }
         .onDisappear {
+            removeKeyboardMonitor()
             releaseKeyboardState()
         }
     }
@@ -788,6 +795,36 @@ private struct WebViewStreamingSurface: View {
             }
         }
         return true
+    }
+
+    private func installKeyboardMonitor() {
+        guard keyMonitor == nil else {
+            return
+        }
+
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
+            let result = keyboardInput.handle(event)
+            guard result.handled else {
+                return event
+            }
+
+            if let state = result.state {
+                Task { @MainActor in
+                    await engine.sendGamepadState(state)
+                }
+            }
+            return nil
+        }
+        logger.info("Keyboard gamepad local monitor installed")
+    }
+
+    private func removeKeyboardMonitor() {
+        guard let keyMonitor else {
+            return
+        }
+        NSEvent.removeMonitor(keyMonitor)
+        self.keyMonitor = nil
+        logger.info("Keyboard gamepad local monitor removed")
     }
 
     private func releaseKeyboardState() {

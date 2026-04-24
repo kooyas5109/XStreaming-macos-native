@@ -363,6 +363,110 @@ func liveProviderRefreshesStoredSessionWhenProfileTokenIsUnavailable() async thr
     #expect(await session.consumedResponses == 7)
 }
 
+@Test
+func liveProviderPreservesStoredCloudTokenWhenRefreshDoesNotReturnOne() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "access_token": "new-access-token",
+              "refresh_token": "new-refresh-token",
+              "expires_in": 3600,
+              "token_type": "Bearer"
+            }
+            """
+        ),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "Token": "user-token",
+              "DisplayClaims": {
+                "xui": [
+                  { "uhs": "12345" }
+                ]
+              }
+            }
+            """
+        ),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "Token": "new-web-token",
+              "DisplayClaims": {
+                "xui": [
+                  { "uhs": "12345" }
+                ]
+              }
+            }
+            """
+        ),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "Token": "new-gssv-token",
+              "DisplayClaims": {
+                "xui": [
+                  { "uhs": "12345" }
+                ]
+              }
+            }
+            """
+        ),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "profileUsers": [
+                {
+                  "settings": [
+                    { "id": "Gamertag", "value": "Refreshed User" }
+                  ]
+                }
+              ]
+            }
+            """
+        ),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "gsToken": "new-xhome-token",
+              "offeringSettings": {
+                "regions": [
+                  {
+                    "baseUri": "https://home.example.com",
+                    "isDefault": true
+                  }
+                ]
+              }
+            }
+            """
+        ),
+        MockURLSession.Response(statusCode: 500, body: "{\"error\":\"unsupported_region\"}"),
+        MockURLSession.Response(statusCode: 500, body: "{\"error\":\"unsupported_region\"}")
+    ])
+
+    let provider = LiveXboxAuthProvider(
+        httpClient: HTTPClient(session: session)
+    )
+    let result = try await provider.restoreSession(
+        from: StoredTokens(
+            authToken: "old-access-token",
+            refreshToken: "stored-refresh-token",
+            xCloudStreamingToken: "stored-xcloud-token",
+            xCloudBaseURI: "https://stored-cloud.example.com"
+        )
+    )
+
+    #expect(result.authState.isSignedIn == true)
+    #expect(result.tokens.xCloudStreamingToken == "stored-xcloud-token")
+    #expect(result.tokens.xCloudBaseURI == "https://stored-cloud.example.com")
+}
+
 private actor ResponseCounter {
     private(set) var value = 0
 
@@ -392,6 +496,9 @@ private final class MockURLSession: URLSessionProviding, @unchecked Sendable {
     }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        guard index < responses.count else {
+            throw URLError(.badServerResponse)
+        }
         let response = responses[index]
         index += 1
         await counter.increment()

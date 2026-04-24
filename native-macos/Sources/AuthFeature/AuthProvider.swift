@@ -323,8 +323,8 @@ public struct LiveXboxAuthProvider: XboxAuthProviding {
             userHash: userHash,
             xHomeStreamingToken: xHomeToken.token,
             xHomeBaseURI: xHomeToken.defaultBaseURI,
-            xCloudStreamingToken: xCloudToken?.token,
-            xCloudBaseURI: xCloudToken?.defaultBaseURI
+            xCloudStreamingToken: xCloudToken?.token ?? tokens.xCloudStreamingToken,
+            xCloudBaseURI: xCloudToken?.defaultBaseURI ?? tokens.xCloudBaseURI
         )
         return AuthSignInResult(authState: state, tokens: refreshedTokens)
     }

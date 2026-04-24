@@ -184,6 +184,58 @@ func liveStreamingRepositoryConnectsReadySessionWithTransferToken() async throws
 }
 
 @Test
+func liveStreamingRepositoryAcceptsOAuthTransferTokenResponse() async throws {
+    let session = MockURLSession(responses: [
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "sessionPath": "/v5/sessions/cloud/session-123",
+              "state": "ReadyToConnect"
+            }
+            """
+        ),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "token_type": "bearer",
+              "expires_in": 3600,
+              "scope": "service::http://Passport.NET/ purpose::PURPOSE_XBOX_CLOUD_CONSOLE_TRANSFER_TOKEN",
+              "access_token": "oauth-transfer-token"
+            }
+            """
+        ),
+        MockURLSession.Response(statusCode: 200, body: "{}"),
+        MockURLSession.Response(
+            statusCode: 200,
+            body: """
+            {
+              "state": "Provisioned"
+            }
+            """
+        )
+    ])
+    let repository = LiveStreamingRepository(
+        httpClient: HTTPClient(session: session),
+        tokenStore: InMemoryTokenStore(
+            initialValue: StoredTokens(
+                refreshToken: "refresh-token",
+                xCloudStreamingToken: "xcloud-token",
+                xCloudBaseURI: "https://cloud.example.com"
+            )
+        )
+    )
+
+    let created = try await repository.createSession(kind: .cloud, targetID: "FORTNITE")
+    let connected = try await repository.connectSession(sessionID: created.id)
+
+    #expect(connected.state == .started)
+    let bodies = await session.requestBodies
+    #expect(bodies[2].contains("\"userToken\":\"oauth-transfer-token\""))
+}
+
+@Test
 func liveStreamingRepositoryExchangesSdpOfferForRemoteAnswer() async throws {
     let session = MockURLSession(responses: [
         MockURLSession.Response(

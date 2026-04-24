@@ -831,6 +831,16 @@ private struct StreamingTransferTokenResponse: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case livePassportToken = "lpt"
+        case accessToken = "access_token"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let livePassportToken = try container.decodeIfPresent(String.self, forKey: .livePassportToken) {
+            self.livePassportToken = livePassportToken
+        } else {
+            self.livePassportToken = try container.decode(String.self, forKey: .accessToken)
+        }
     }
 }
 

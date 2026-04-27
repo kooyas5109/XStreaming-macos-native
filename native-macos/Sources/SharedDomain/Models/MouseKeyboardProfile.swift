@@ -97,6 +97,16 @@ public struct MouseKeyboardProfiles: Codable, Equatable, Sendable {
 }
 
 public extension MouseKeyboardProfiles {
+    static let bindingSlotsPerControl = 2
+    static let controlOrder: [MouseKeyboardGamepadControl] = [
+        .nexus,
+        .dpadUp, .dpadDown, .dpadLeft, .dpadRight,
+        .buttonA, .buttonB, .buttonX, .buttonY,
+        .leftShoulder, .rightShoulder, .leftTrigger, .rightTrigger,
+        .view, .menu,
+        .leftThumbPress, .leftStickUp, .leftStickDown, .leftStickLeft, .leftStickRight,
+        .rightThumbPress, .rightStickUp, .rightStickDown, .rightStickLeft, .rightStickRight
+    ]
     static let defaultMouseSettings = MouseKeyboardMouseSettings(
         mapTo: .rightStick,
         sensitivityX: 100,
@@ -177,4 +187,65 @@ public extension MouseKeyboardProfiles {
         selectedProfileID: standardProfile.id,
         profiles: [standardProfile, shooterProfile]
     )
+
+    static func blankCustomProfile(name: String = "Custom") -> MouseKeyboardMappingProfile {
+        MouseKeyboardMappingProfile(
+            id: UUID().uuidString.lowercased(),
+            name: name,
+            bindings: [:],
+            mouse: defaultMouseSettings
+        )
+    }
+
+    func profile(withID id: String) -> MouseKeyboardMappingProfile? {
+        profiles.first { $0.id == id }
+    }
+
+    func binding(for control: MouseKeyboardGamepadControl, slot: Int, in profileID: String? = nil) -> String? {
+        let resolvedProfile = profile(withID: profileID ?? selectedProfileID) ?? selectedProfile
+        guard slot >= 0 else {
+            return nil
+        }
+        let bindings = resolvedProfile.bindings[control] ?? []
+        guard slot < bindings.count else {
+            return nil
+        }
+        return bindings[slot]
+    }
+
+    func selectingProfile(_ profileID: String) -> MouseKeyboardProfiles {
+        MouseKeyboardProfiles(
+            enabled: enabled,
+            selectedProfileID: profileID,
+            profiles: profiles
+        )
+    }
+
+    func upserting(_ profile: MouseKeyboardMappingProfile, selecting selectProfile: Bool = true) -> MouseKeyboardProfiles {
+        var updatedProfiles = profiles
+        if let index = updatedProfiles.firstIndex(where: { $0.id == profile.id }) {
+            updatedProfiles[index] = profile
+        } else {
+            updatedProfiles.append(profile)
+        }
+
+        return MouseKeyboardProfiles(
+            enabled: enabled,
+            selectedProfileID: selectProfile ? profile.id : selectedProfileID,
+            profiles: updatedProfiles
+        )
+    }
+
+    func deletingProfile(_ profileID: String) -> MouseKeyboardProfiles {
+        let updatedProfiles = profiles.filter { $0.id != profileID }
+        let selectedID = updatedProfiles.contains(where: { $0.id == selectedProfileID })
+        ? selectedProfileID
+        : (updatedProfiles.first?.id ?? Self.standardProfile.id)
+
+        return MouseKeyboardProfiles(
+            enabled: enabled,
+            selectedProfileID: selectedID,
+            profiles: updatedProfiles
+        )
+    }
 }

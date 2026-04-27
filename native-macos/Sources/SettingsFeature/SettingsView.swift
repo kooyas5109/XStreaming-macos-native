@@ -1,5 +1,7 @@
+import AppKit
 import SwiftUI
 import SharedDomain
+import SupportKit
 
 public struct SettingsView: View {
     @StateObject private var viewModel: SettingsViewModel
@@ -164,6 +166,8 @@ public struct SettingsView: View {
                             suffix: "%"
                         )
 
+                        mouseKeyboardBindingsEditor(strings: strings)
+
                         Toggle(strings.vibrationTitle, isOn: $viewModel.vibrationEnabled)
                             .toggleStyle(.switch)
 
@@ -238,6 +242,133 @@ public struct SettingsView: View {
         .onChange(of: viewModel.selectedMouseKeyboardProfileID) { _, profileID in
             viewModel.selectMouseKeyboardProfile(profileID)
         }
+    }
+
+    @ViewBuilder
+    private func mouseKeyboardBindingsEditor(strings: SettingsStrings) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Divider()
+
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(strings.mouseBindingsTitle)
+                        .font(.subheadline.weight(.semibold))
+                    Text(strings.mouseBindingsPrompt)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button(strings.newProfileAction) {
+                    viewModel.createProfile()
+                }
+                .buttonStyle(.bordered)
+
+                Button(strings.duplicateProfileAction) {
+                    viewModel.duplicateSelectedProfile()
+                }
+                .buttonStyle(.bordered)
+
+                Button(strings.importProfileAction) {
+                    importMouseKeyboardProfile()
+                }
+                .buttonStyle(.bordered)
+
+                Button(strings.exportProfileAction) {
+                    exportMouseKeyboardProfile()
+                }
+                .buttonStyle(.bordered)
+
+                Button(strings.deleteProfileAction) {
+                    viewModel.deleteSelectedProfile()
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.selectedMouseKeyboardProfile.isBuiltIn)
+            }
+
+            Picker(strings.mouseKeyboardProfileTitle, selection: $viewModel.selectedMouseKeyboardProfileID) {
+                ForEach(viewModel.mouseKeyboardProfiles.profiles) { profile in
+                    Text(profile.name).tag(profile.id)
+                }
+            }
+            .pickerStyle(.menu)
+
+            TextField(
+                strings.profileNamePlaceholder,
+                text: Binding(
+                    get: { viewModel.selectedMouseKeyboardProfile.name },
+                    set: { viewModel.updateSelectedProfileName($0) }
+                )
+            )
+            .textFieldStyle(.roundedBorder)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(strings.actionColumnTitle)
+                        .frame(width: 140, alignment: .leading)
+                    Text(strings.primaryBindingTitle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(strings.secondaryBindingTitle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+                ForEach(MouseKeyboardProfiles.controlOrder, id: \.self) { control in
+                    HStack(spacing: 8) {
+                        Text(strings.label(for: control))
+                            .frame(width: 140, alignment: .leading)
+
+                        MouseKeyboardBindingCaptureButton(
+                            title: viewModel.binding(for: control, slot: 0).map(WebInputCodeMapper.displayName(for:)) ?? strings.unboundBinding,
+                            prompt: strings.pressKeyPrompt,
+                            clearTitle: strings.clearBindingAction
+                        ) { code in
+                            viewModel.setBinding(code, for: control, slot: 0)
+                        } onClear: {
+                            viewModel.setBinding(nil, for: control, slot: 0)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        MouseKeyboardBindingCaptureButton(
+                            title: viewModel.binding(for: control, slot: 1).map(WebInputCodeMapper.displayName(for:)) ?? strings.unboundBinding,
+                            prompt: strings.pressKeyPrompt,
+                            clearTitle: strings.clearBindingAction
+                        ) { code in
+                            viewModel.setBinding(code, for: control, slot: 1)
+                        } onClear: {
+                            viewModel.setBinding(nil, for: control, slot: 1)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+    }
+
+    private func importMouseKeyboardProfile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.title = viewModel.selectedLanguage == .english ? "Import Mouse & Keyboard Profile" : "导入键鼠配置"
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+        try? viewModel.importMouseKeyboardProfile(from: url)
+    }
+
+    private func exportMouseKeyboardProfile() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "\(viewModel.selectedMouseKeyboardProfile.name).json"
+        panel.title = viewModel.selectedLanguage == .english ? "Export Mouse & Keyboard Profile" : "导出键鼠配置"
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+        try? viewModel.exportSelectedProfile(to: url)
     }
 }
 
@@ -386,6 +517,95 @@ private struct SettingsStrings {
         language == .english ? "Mouse deadzone counterweight" : "鼠标死区补偿"
     }
 
+    var mouseBindingsTitle: String {
+        language == .english ? "Controller Bindings" : "手柄映射"
+    }
+
+    var mouseBindingsPrompt: String {
+        language == .english
+        ? "Click a slot, then press a key, mouse button, or wheel direction. Use the context menu to clear a binding."
+        : "点击槽位后按下键盘、鼠标按键或滚轮方向即可绑定；通过右键菜单可以清空绑定。"
+    }
+
+    var newProfileAction: String {
+        language == .english ? "New" : "新建"
+    }
+
+    var duplicateProfileAction: String {
+        language == .english ? "Duplicate" : "复制"
+    }
+
+    var deleteProfileAction: String {
+        language == .english ? "Delete" : "删除"
+    }
+
+    var importProfileAction: String {
+        language == .english ? "Import JSON" : "导入 JSON"
+    }
+
+    var exportProfileAction: String {
+        language == .english ? "Export JSON" : "导出 JSON"
+    }
+
+    var profileNamePlaceholder: String {
+        language == .english ? "Profile name" : "配置名称"
+    }
+
+    var actionColumnTitle: String {
+        language == .english ? "Action" : "动作"
+    }
+
+    var primaryBindingTitle: String {
+        language == .english ? "Primary" : "主绑定"
+    }
+
+    var secondaryBindingTitle: String {
+        language == .english ? "Secondary" : "副绑定"
+    }
+
+    var unboundBinding: String {
+        language == .english ? "Unbound" : "未绑定"
+    }
+
+    var pressKeyPrompt: String {
+        language == .english ? "Press a key or mouse input" : "按下键盘或鼠标输入"
+    }
+
+    var clearBindingAction: String {
+        language == .english ? "Clear" : "清空"
+    }
+
+    func label(for control: MouseKeyboardGamepadControl) -> String {
+        switch control {
+        case .buttonA: return language == .english ? "A" : "A"
+        case .buttonB: return language == .english ? "B" : "B"
+        case .buttonX: return language == .english ? "X" : "X"
+        case .buttonY: return language == .english ? "Y" : "Y"
+        case .leftShoulder: return language == .english ? "LB" : "LB"
+        case .rightShoulder: return language == .english ? "RB" : "RB"
+        case .leftTrigger: return language == .english ? "LT" : "LT"
+        case .rightTrigger: return language == .english ? "RT" : "RT"
+        case .view: return language == .english ? "View" : "视图"
+        case .menu: return language == .english ? "Menu" : "菜单"
+        case .leftThumbPress: return language == .english ? "L3" : "左摇杆按压"
+        case .rightThumbPress: return language == .english ? "R3" : "右摇杆按压"
+        case .dpadUp: return language == .english ? "D-Pad Up" : "方向键上"
+        case .dpadDown: return language == .english ? "D-Pad Down" : "方向键下"
+        case .dpadLeft: return language == .english ? "D-Pad Left" : "方向键左"
+        case .dpadRight: return language == .english ? "D-Pad Right" : "方向键右"
+        case .nexus: return language == .english ? "Nexus" : "Xbox 键"
+        case .share: return language == .english ? "Share" : "分享"
+        case .leftStickUp: return language == .english ? "Left Stick Up" : "左摇杆上"
+        case .leftStickDown: return language == .english ? "Left Stick Down" : "左摇杆下"
+        case .leftStickLeft: return language == .english ? "Left Stick Left" : "左摇杆左"
+        case .leftStickRight: return language == .english ? "Left Stick Right" : "左摇杆右"
+        case .rightStickUp: return language == .english ? "Right Stick Up" : "右摇杆上"
+        case .rightStickDown: return language == .english ? "Right Stick Down" : "右摇杆下"
+        case .rightStickLeft: return language == .english ? "Right Stick Left" : "右摇杆左"
+        case .rightStickRight: return language == .english ? "Right Stick Right" : "右摇杆右"
+        }
+    }
+
     var vibrationTitle: String {
         language == .english ? "Enable vibration" : "启用震动"
     }
@@ -482,5 +702,93 @@ private struct SettingsSliderRow: View {
 
             Slider(value: $value, in: range, step: step)
         }
+    }
+}
+
+private struct MouseKeyboardBindingCaptureButton: View {
+    let title: String
+    let prompt: String
+    let clearTitle: String
+    let onBind: (String) -> Void
+    let onClear: () -> Void
+
+    @State private var isCapturing = false
+    @State private var monitors: [Any] = []
+
+    var body: some View {
+        Button(isCapturing ? prompt : title) {
+            beginCapture()
+        }
+        .buttonStyle(.bordered)
+        .contextMenu {
+            Button(clearTitle) {
+                stopCapture()
+                onClear()
+            }
+        }
+        .onDisappear {
+            stopCapture()
+        }
+    }
+
+    private func beginCapture() {
+        stopCapture()
+        isCapturing = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            guard isCapturing else {
+                return
+            }
+
+            let keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                if event.keyCode == 53 {
+                    stopCapture()
+                    return nil
+                }
+                guard let code = WebInputCodeMapper.code(for: event) else {
+                    return event
+                }
+                onBind(code)
+                stopCapture()
+                return nil
+            }
+
+            let leftClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) { event in
+                onBind(WebInputCodeMapper.mouseButtonCode(for: event))
+                stopCapture()
+                return nil
+            }
+
+            let rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseUp) { event in
+                onBind(WebInputCodeMapper.mouseButtonCode(for: event))
+                stopCapture()
+                return nil
+            }
+
+            let otherClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .otherMouseUp) { event in
+                onBind(WebInputCodeMapper.mouseButtonCode(for: event))
+                stopCapture()
+                return nil
+            }
+
+            let wheelMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+                guard let code = WebInputCodeMapper.wheelCode(
+                    vertical: Double(event.scrollingDeltaY),
+                    horizontal: Double(event.scrollingDeltaX)
+                ) else {
+                    return event
+                }
+                onBind(code)
+                stopCapture()
+                return nil
+            }
+
+            monitors = [keyMonitor, leftClickMonitor, rightClickMonitor, otherClickMonitor, wheelMonitor].compactMap { $0 }
+        }
+    }
+
+    private func stopCapture() {
+        isCapturing = false
+        monitors.forEach { NSEvent.removeMonitor($0) }
+        monitors.removeAll()
     }
 }

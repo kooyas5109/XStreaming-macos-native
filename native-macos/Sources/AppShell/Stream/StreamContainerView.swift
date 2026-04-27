@@ -123,6 +123,38 @@ public struct StreamContainerView: View {
                 showPerformancePanel.toggle()
             }
 
+            Menu {
+                Button(mouseKeyboardProfiles.enabled ? strings.disableMouseKeyboardAction : strings.enableMouseKeyboardAction) {
+                    toggleMouseKeyboardProfilesEnabled()
+                }
+
+                Divider()
+
+                ForEach(mouseKeyboardProfiles.profiles) { profile in
+                    Button {
+                        selectMouseKeyboardProfile(profile.id)
+                    } label: {
+                        if profile.id == mouseKeyboardProfiles.selectedProfileID {
+                            Label(profile.name, systemImage: "checkmark")
+                        } else {
+                            Text(profile.name)
+                        }
+                    }
+                }
+
+                Divider()
+
+                Button(strings.importProfileAction) {
+                    importMouseKeyboardProfile()
+                }
+
+                Button(strings.exportProfileAction) {
+                    exportMouseKeyboardProfile()
+                }
+            } label: {
+                Label(strings.mouseKeyboardMenuTitle, systemImage: "keyboard")
+            }
+
             Button(strings.fullscreenAction) {
                 WindowControls.toggleFullscreen()
             }
@@ -612,6 +644,65 @@ public struct StreamContainerView: View {
         mouseKeyboardProfiles = (try? mouseKeyboardProfileStore.load()) ?? .defaults
         displayOptions = settings.displayOptions
         updateCommandContext()
+    }
+
+    private func toggleMouseKeyboardProfilesEnabled() {
+        var profiles = mouseKeyboardProfiles
+        profiles.enabled.toggle()
+        persistMouseKeyboardProfiles(profiles)
+    }
+
+    private func selectMouseKeyboardProfile(_ profileID: String) {
+        persistMouseKeyboardProfiles(mouseKeyboardProfiles.selectingProfile(profileID))
+    }
+
+    private func importMouseKeyboardProfile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.title = language == .english ? "Import Mouse & Keyboard Profile" : "导入键鼠配置"
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        do {
+            switch try MouseKeyboardProfileFileCodec.readImportPayload(from: url) {
+            case .profiles(let profiles):
+                persistMouseKeyboardProfiles(profiles)
+                infoMessage = language == .english ? "Mouse & keyboard profiles imported." : "键鼠配置已导入。"
+            case .profile(let profile):
+                persistMouseKeyboardProfiles(mouseKeyboardProfiles.upserting(profile))
+                infoMessage = language == .english ? "Mouse & keyboard profile imported." : "键鼠配置已导入。"
+            }
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func exportMouseKeyboardProfile() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "\(mouseKeyboardProfiles.selectedProfile.name).json"
+        panel.title = language == .english ? "Export Mouse & Keyboard Profile" : "导出键鼠配置"
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        do {
+            try MouseKeyboardProfileFileCodec.writeProfile(mouseKeyboardProfiles.selectedProfile, to: url)
+            infoMessage = language == .english ? "Mouse & keyboard profile exported." : "键鼠配置已导出。"
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func persistMouseKeyboardProfiles(_ profiles: MouseKeyboardProfiles) {
+        mouseKeyboardProfiles = profiles
+        try? mouseKeyboardProfileStore.save(profiles)
     }
 
     private func refreshPerformance(for state: StreamingStateMachine.State? = nil) {

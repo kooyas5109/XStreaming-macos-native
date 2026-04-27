@@ -1,3 +1,4 @@
+import Foundation
 import PersistenceKit
 import SharedDomain
 import Testing
@@ -148,4 +149,49 @@ func settingsMapperUpdatesStreamingPreferencesWithoutTouchingLanguage() {
     #expect(updated.enableNativeMouseKeyboard == true)
     #expect(updated.mouseSensitive == 1.1)
     #expect(updated.locale == AppSettings.defaults.locale)
+}
+
+@MainActor
+@Test
+func updatingMouseKeyboardBindingPersistsIntoSelectedProfile() throws {
+    let settingsStore = InMemorySettingsStore()
+    let profileStore = InMemoryMouseKeyboardProfileStore()
+    let model = SettingsViewModel(
+        settingsStore: settingsStore,
+        mouseKeyboardProfileStore: profileStore
+    )
+    try model.load()
+
+    model.setBinding("KeyI", for: .rightStickUp, slot: 0)
+    try model.save()
+
+    let persistedProfiles = try profileStore.load()
+    #expect(persistedProfiles.selectedProfile.bindings[.rightStickUp] == ["KeyI"])
+}
+
+@MainActor
+@Test
+func importingMouseKeyboardProfileSelectsImportedProfile() throws {
+    let settingsStore = InMemorySettingsStore()
+    let profileStore = InMemoryMouseKeyboardProfileStore()
+    let model = SettingsViewModel(
+        settingsStore: settingsStore,
+        mouseKeyboardProfileStore: profileStore
+    )
+    try model.load()
+
+    let profile = MouseKeyboardMappingProfile(
+        id: "imported-profile",
+        name: "Imported",
+        bindings: [.leftStickUp: ["ArrowUp"]],
+        mouse: MouseKeyboardProfiles.defaultMouseSettings
+    )
+
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("imported-profile-\(UUID().uuidString).json")
+    try MouseKeyboardProfileFileCodec.writeProfile(profile, to: url)
+    try model.importMouseKeyboardProfile(from: url)
+
+    #expect(model.selectedMouseKeyboardProfileID == "imported-profile")
+    #expect(model.selectedMouseKeyboardProfile.bindings[.leftStickUp] == ["ArrowUp"])
 }

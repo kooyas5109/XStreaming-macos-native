@@ -74,7 +74,7 @@ let package = Package(
         ),
         .target(
             name: "SettingsFeature",
-            dependencies: ["SharedDomain", "PersistenceKit"],
+            dependencies: ["SharedDomain", "PersistenceKit", "SupportKit"],
             path: "Sources/SettingsFeature"
         ),
         .target(

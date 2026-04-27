@@ -1,6 +1,7 @@
 import Foundation
 import PersistenceKit
 import SharedDomain
+import SupportKit
 
 @MainActor
 public final class SettingsViewModel: ObservableObject {
@@ -133,13 +134,120 @@ public final class SettingsViewModel: ObservableObject {
     }
 
     public func selectMouseKeyboardProfile(_ profileID: String) {
-        selectedMouseKeyboardProfileID = profileID
-        let profiles = MouseKeyboardProfiles(
-            enabled: mouseKeyboardEnabled,
-            selectedProfileID: profileID,
-            profiles: mouseKeyboardProfiles.profiles
-        )
+        let profiles = updatedMouseKeyboardProfiles().selectingProfile(profileID)
+        mouseKeyboardProfiles = profiles
         applyMouseKeyboardProfiles(profiles)
+    }
+
+    public var selectedMouseKeyboardProfile: MouseKeyboardMappingProfile {
+        mouseKeyboardProfiles.profile(withID: selectedMouseKeyboardProfileID) ?? MouseKeyboardProfiles.standardProfile
+    }
+
+    public func binding(for control: MouseKeyboardGamepadControl, slot: Int) -> String? {
+        mouseKeyboardProfiles.binding(for: control, slot: slot, in: selectedMouseKeyboardProfileID)
+    }
+
+    public func setBinding(_ code: String?, for control: MouseKeyboardGamepadControl, slot: Int) {
+        mutateSelectedProfile { profile in
+            let sanitizedCode = code?.trimmingCharacters(in: .whitespacesAndNewlines)
+            var updatedBindings = profile.bindings
+
+            if let sanitizedCode, sanitizedCode.isEmpty == false {
+                for existingControl in MouseKeyboardProfiles.controlOrder {
+                    var values = updatedBindings[existingControl] ?? []
+                    values.removeAll { $0 == sanitizedCode }
+                    while values.last?.isEmpty == true { values.removeLast() }
+                    if values.isEmpty {
+                        updatedBindings.removeValue(forKey: existingControl)
+                    } else {
+                        updatedBindings[existingControl] = values
+                    }
+                }
+            }
+
+            var values = updatedBindings[control] ?? []
+            while values.count <= slot {
+                values.append("")
+            }
+
+            if let sanitizedCode, sanitizedCode.isEmpty == false {
+                values[slot] = sanitizedCode
+            } else if slot < values.count {
+                values[slot] = ""
+            }
+
+            while values.last?.isEmpty == true { values.removeLast() }
+            if values.isEmpty {
+                updatedBindings.removeValue(forKey: control)
+            } else {
+                updatedBindings[control] = values
+            }
+
+            profile.bindings = updatedBindings
+        }
+    }
+
+    public func updateSelectedProfileName(_ name: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedName.isEmpty == false else {
+            return
+        }
+        mutateSelectedProfile { profile in
+            profile.name = trimmedName
+        }
+    }
+
+    public func createProfile() {
+        let existingNames = Set(mouseKeyboardProfiles.profiles.map(\.name))
+        var suffix = 1
+        var name = selectedLanguage == .english ? "Custom \(suffix)" : "自定义 \(suffix)"
+        while existingNames.contains(name) {
+            suffix += 1
+            name = selectedLanguage == .english ? "Custom \(suffix)" : "自定义 \(suffix)"
+        }
+
+        let profile = MouseKeyboardProfiles.blankCustomProfile(name: name)
+        let profiles = updatedMouseKeyboardProfiles().upserting(profile)
+        mouseKeyboardProfiles = profiles
+        applyMouseKeyboardProfiles(profiles)
+    }
+
+    public func duplicateSelectedProfile() {
+        var duplicate = selectedMouseKeyboardProfile
+        duplicate.id = UUID().uuidString.lowercased()
+        duplicate.isBuiltIn = false
+        duplicate.name = selectedLanguage == .english
+        ? "\(selectedMouseKeyboardProfile.name) Copy"
+        : "\(selectedMouseKeyboardProfile.name) 副本"
+
+        let profiles = updatedMouseKeyboardProfiles().upserting(duplicate)
+        mouseKeyboardProfiles = profiles
+        applyMouseKeyboardProfiles(profiles)
+    }
+
+    public func deleteSelectedProfile() {
+        guard selectedMouseKeyboardProfile.isBuiltIn == false else {
+            return
+        }
+        let profiles = updatedMouseKeyboardProfiles().deletingProfile(selectedMouseKeyboardProfileID)
+        mouseKeyboardProfiles = profiles
+        applyMouseKeyboardProfiles(profiles)
+    }
+
+    public func importMouseKeyboardProfile(from url: URL) throws {
+        switch try MouseKeyboardProfileFileCodec.readImportPayload(from: url) {
+        case .profiles(let profiles):
+            mouseKeyboardProfiles = profiles
+            applyMouseKeyboardProfiles(profiles)
+        case .profile(let profile):
+            let profiles = updatedMouseKeyboardProfiles().upserting(profile)
+            mouseKeyboardProfiles = profiles
+            applyMouseKeyboardProfiles(profiles)
+        }
+    }
+
+    public func exportSelectedProfile(to url: URL) throws {
+        try MouseKeyboardProfileFileCodec.writeProfile(selectedMouseKeyboardProfile, to: url)
     }
 
     public static func preview() async throws -> SettingsViewModel {
@@ -180,5 +288,18 @@ public final class SettingsViewModel: ObservableObject {
             return updated
         }
         return profiles
+    }
+
+    private func mutateSelectedProfile(_ update: (inout MouseKeyboardMappingProfile) -> Void) {
+        var profiles = updatedMouseKeyboardProfiles()
+        guard let index = profiles.profiles.firstIndex(where: { $0.id == profiles.selectedProfileID }) else {
+            return
+        }
+
+        var updatedProfile = profiles.profiles[index]
+        update(&updatedProfile)
+        profiles.profiles[index] = updatedProfile
+        mouseKeyboardProfiles = profiles
+        applyMouseKeyboardProfiles(profiles)
     }
 }

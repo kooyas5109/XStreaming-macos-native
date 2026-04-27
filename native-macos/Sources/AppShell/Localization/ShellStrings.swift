@@ -302,6 +302,11 @@ public struct ShellStrings {
     public var togglePerformanceAction: String { language == .english ? "Toggle Performance" : "切换性能信息" }
     public var showPerformanceAction: String { language == .english ? "Show Performance" : "显示性能" }
     public var hidePerformanceAction: String { language == .english ? "Hide Performance" : "隐藏性能" }
+    public var mouseKeyboardMenuTitle: String { language == .english ? "Mouse & Keyboard" : "键鼠映射" }
+    public var enableMouseKeyboardAction: String { language == .english ? "Enable Emulated Controller" : "启用键鼠模拟手柄" }
+    public var disableMouseKeyboardAction: String { language == .english ? "Disable Emulated Controller" : "关闭键鼠模拟手柄" }
+    public var importProfileAction: String { language == .english ? "Import Profile JSON" : "导入配置 JSON" }
+    public var exportProfileAction: String { language == .english ? "Export Current Profile" : "导出当前配置" }
     public var openMicAction: String { language == .english ? "Open Mic" : "打开麦克风" }
     public var closeMicAction: String { language == .english ? "Close Mic" : "关闭麦克风" }
     public var disconnectAction: String { language == .english ? "Disconnect" : "断开连接" }

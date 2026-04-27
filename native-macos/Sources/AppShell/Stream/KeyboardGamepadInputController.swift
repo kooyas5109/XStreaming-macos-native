@@ -63,7 +63,7 @@ final class KeyboardGamepadInputController: ObservableObject {
         guard enabled else {
             return Result(handled: false, state: nil)
         }
-        let binding = "Mouse\(event.buttonNumber)"
+        let binding = WebInputCodeMapper.mouseButtonCode(for: event)
         let state = tracker.update(binding: binding, isPressed: pressed)
         if state != nil {
             logger.info("Mouse gamepad input captured: button=\(binding), pressed=\(pressed)")
@@ -144,71 +144,6 @@ final class KeyboardGamepadInputController: ObservableObject {
     }
 
     private func webKeyCode(for event: NSEvent) -> String? {
-        switch event.keyCode {
-        case 0: return "KeyA"
-        case 1: return "KeyS"
-        case 2: return "KeyD"
-        case 3: return "KeyF"
-        case 4: return "KeyH"
-        case 5: return "KeyG"
-        case 6: return "KeyZ"
-        case 7: return "KeyX"
-        case 8: return "KeyC"
-        case 9: return "KeyV"
-        case 11: return "KeyB"
-        case 12: return "KeyQ"
-        case 13: return "KeyW"
-        case 14: return "KeyE"
-        case 15: return "KeyR"
-        case 16: return "KeyY"
-        case 17: return "KeyT"
-        case 31: return "KeyO"
-        case 32: return "KeyU"
-        case 34: return "KeyI"
-        case 35: return "KeyP"
-        case 37: return "KeyL"
-        case 38: return "KeyJ"
-        case 40: return "KeyK"
-        case 45: return "KeyN"
-        case 46: return "KeyM"
-        case 18: return "Digit1"
-        case 19: return "Digit2"
-        case 20: return "Digit3"
-        case 21: return "Digit4"
-        case 23: return "Digit5"
-        case 22: return "Digit6"
-        case 26: return "Digit7"
-        case 28: return "Digit8"
-        case 25: return "Digit9"
-        case 29: return "Digit0"
-        case 36, 76:
-            return "Enter"
-        case 51:
-            return "Backspace"
-        case 48:
-            return "Tab"
-        case 49:
-            return "Space"
-        case 50:
-            return "Backquote"
-        case 53:
-            return "Escape"
-        case 56:
-            return "ShiftLeft"
-        case 59:
-            return "ControlLeft"
-        case 58:
-            return "AltLeft"
-        case 123:
-            return "ArrowLeft"
-        case 124:
-            return "ArrowRight"
-        case 125:
-            return "ArrowDown"
-        case 126:
-            return "ArrowUp"
-        default:
-            return nil
-        }
+        WebInputCodeMapper.code(for: event)
     }
 }
